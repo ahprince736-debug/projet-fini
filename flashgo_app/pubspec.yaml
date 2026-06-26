@@ -1,0 +1,60 @@
+name: flashgo_app
+description: Application de livraison express FlashGo - Bénin
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase - base de données et auth
+  supabase_flutter: ^2.0.0
+
+  # Gestion d'état
+  flutter_riverpod: ^2.4.0
+
+  # Navigation
+  go_router: ^12.0.0
+
+  # Requêtes HTTP vers notre API Node.js
+  http: ^1.1.0
+
+  # Carte GPS
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
+
+  # GPS arrière-plan
+  geolocator: ^11.0.0
+
+  # Photo / Caméra pour KYC
+  image_picker: ^1.0.0
+
+  # Stockage local
+  shared_preferences: ^2.2.0
+
+  # Stockage sécurisé OTP
+  hive_flutter: ^1.1.0
+
+  # Cryptographie pour hash OTP
+  crypto: ^3.0.3
+
+  # Identifiant unique de l'appareil
+  device_info_plus: ^9.0.0
+
+  # Ouvrir liens externes (WhatsApp, appels)
+  url_launcher: ^6.2.0
+
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
