@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../services/local_storage.dart';
 import '../../widgets/flashgo_button.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class HandoverScreen extends StatefulWidget {
   final String orderId;
@@ -62,7 +64,7 @@ class _HandoverScreenState extends State<HandoverScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content:         Text('✅ Colis en transit ! SMS envoyé au client.'),
-            backgroundColor: Color(0xFF22C55E),
+            backgroundColor: AppColors.success,
           ),
         );
         context.go('/vendor/dashboard');
@@ -71,7 +73,7 @@ class _HandoverScreenState extends State<HandoverScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:         Text(data['error'] ?? 'Erreur'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -79,7 +81,7 @@ class _HandoverScreenState extends State<HandoverScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:         Text('Impossible de joindre le serveur.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
         ),
       );
     } finally {
@@ -90,7 +92,7 @@ class _HandoverScreenState extends State<HandoverScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation:       0,
@@ -115,12 +117,12 @@ class _HandoverScreenState extends State<HandoverScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFFBEF264).withOpacity(_pulseAnim.value),
+                      color: AppColors.cta.withOpacity(_pulseAnim.value),
                       width: 3,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color:       const Color(0xFFBEF264).withOpacity(_pulseAnim.value * 0.3),
+                        color:       AppColors.cta.withOpacity(_pulseAnim.value * 0.3),
                         blurRadius:  30,
                         spreadRadius: 10,
                       ),
@@ -128,7 +130,7 @@ class _HandoverScreenState extends State<HandoverScreen>
                   ),
                   child: const Icon(
                     Icons.local_shipping,
-                    color: Color(0xFFBEF264),
+                    color: AppColors.cta,
                     size:  80,
                   ),
                 );
@@ -137,24 +139,16 @@ class _HandoverScreenState extends State<HandoverScreen>
             const SizedBox(height: 40),
 
             // Alerte
-            const Text(
+            Text(
               'Le livreur est arrivé !',
-              style: TextStyle(
-                color:      Color(0xFFBEF264),
-                fontSize:   26,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTypography.displayLarge.copyWith(color: AppColors.cta, fontSize: 26),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               'Veuillez lui remettre le colis physiquement avant de confirmer.',
-              style: TextStyle(
-                color:    Colors.white70,
-                fontSize: 15,
-                height:   1.5,
-              ),
+              style: AppTypography.bodyLarge.copyWith(color: Colors.white70, height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -162,18 +156,18 @@ class _HandoverScreenState extends State<HandoverScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color:        Colors.orange.withOpacity(0.1),
+                color:        AppColors.warning.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border:       Border.all(color: Colors.orange.withOpacity(0.5)),
+                border:       Border.all(color: AppColors.warning.withOpacity(0.5)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.orange, size: 20),
-                  SizedBox(width: 12),
+                  const Icon(Icons.warning_amber, color: AppColors.warning, size: 20),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Ne confirmez qu\'après avoir vu le livreur tenir le colis.',
-                      style: TextStyle(color: Colors.orange, fontSize: 13),
+                      style: AppTypography.label.copyWith(color: AppColors.warning),
                     ),
                   ),
                 ],
@@ -193,9 +187,9 @@ class _HandoverScreenState extends State<HandoverScreen>
             // Bouton annuler
             TextButton(
               onPressed: () => context.pop(),
-              child: const Text(
+              child: Text(
                 'Annuler',
-                style: TextStyle(color: Colors.white38, fontSize: 14),
+                style: AppTypography.label.copyWith(color: AppColors.textDisabled),
               ),
             ),
           ],

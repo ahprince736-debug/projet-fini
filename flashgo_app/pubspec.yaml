@@ -26,6 +26,9 @@ dependencies:
   flutter_map: ^6.0.0
   latlong2: ^0.9.0
 
+  # Typographie de marque (Sora, Inter, Space Mono)
+  google_fonts: ^6.1.0
+
   # GPS arrière-plan
   geolocator: ^11.0.0
 
@@ -34,6 +37,9 @@ dependencies:
 
   # Stockage local
   shared_preferences: ^2.2.0
+
+  # Stockage sécurisé (token JWT, données sensibles)
+  flutter_secure_storage: ^9.0.0
 
   # Stockage sécurisé OTP
   hive_flutter: ^1.1.0

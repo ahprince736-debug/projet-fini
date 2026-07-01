@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import 'config/supabase_config.dart';
 import 'services/secure_otp_storage.dart';
+import 'services/api_service.dart';
+import 'services/offline_sync_service.dart';
 
 import 'screens/vendor/register_screen.dart';
 import 'screens/vendor/login_screen.dart';
@@ -25,6 +28,7 @@ import 'screens/driver/wallet_screen.dart';
 import 'screens/shared/splash_screen.dart';
 import 'screens/shared/paywall_screen.dart';
 import 'screens/web/tracking_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +39,18 @@ void main() async {
   );
 
   await SecureOtpStorage.init();
+
+  // Tentative de synchronisation des validations OTP faites hors-ligne
+  // lors d'une session précédente (zone blanche). Échec silencieux si
+  // toujours hors-ligne — on réessaiera plus tard.
+  unawaited(OfflineSyncService.trySyncPending());
+
+  // Session expirée (401) : on renvoie l'utilisateur vers le bon écran de
+  // login (vendeur ou livreur) selon le rôle qu'il avait avant déconnexion.
+  ApiService.onSessionExpired = (role) async {
+    final loginRoute = role == 'driver' ? '/driver/login' : '/vendor/login';
+    _router.go(loginRoute);
+  };
 
   runApp(
     const ProviderScope(
@@ -92,14 +108,8 @@ class FlashGoApp extends StatelessWidget {
     return MaterialApp.router(
       title:                      'FlashGo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFF0D1B2A),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor:  const Color(0xFF006D77),
-          brightness: Brightness.dark,
-        ),
-      ),
-      routerConfig: _router,
+      theme:                      AppTheme.dark,
+      routerConfig:               _router,
     );
   }
 }

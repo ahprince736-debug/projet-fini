@@ -7,10 +7,12 @@ import '../../config/api_config.dart';
 import '../../services/local_storage.dart';
 import '../../widgets/flashgo_button.dart';
 import '../../widgets/flashgo_textfield.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
+import '../../widgets/speed_streak.dart';
 
 class VendorLoginScreen extends StatefulWidget {
   const VendorLoginScreen({super.key});
-
   @override
   State<VendorLoginScreen> createState() => _VendorLoginScreenState();
 }
@@ -18,15 +20,12 @@ class VendorLoginScreen extends StatefulWidget {
 class _VendorLoginScreenState extends State<VendorLoginScreen> {
   final _waCtrl   = TextEditingController();
   final _passCtrl = TextEditingController();
-  bool   _isLoading    = false;
+  bool    _isLoading    = false;
   String? _errorMessage;
   String? _shopName;
 
   @override
-  void initState() {
-    super.initState();
-    _loadShopName();
-  }
+  void initState() { super.initState(); _loadShopName(); }
 
   Future<void> _loadShopName() async {
     final name = await LocalStorage.getShopName();
@@ -35,18 +34,14 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
 
   Future<void> _login() async {
     if (_waCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
-      setState(() => _errorMessage = 'Remplis tous les champs');
-      return;
+      setState(() => _errorMessage = 'Remplis tous les champs'); return;
     }
     setState(() { _isLoading = true; _errorMessage = null; });
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.login),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'whatsapp': _waCtrl.text.trim(),
-          'password': _passCtrl.text,
-        }),
+        body:    jsonEncode({'whatsapp': _waCtrl.text.trim(), 'password': _passCtrl.text}),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -57,15 +52,13 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
           await LocalStorage.saveShopName(data['profile']['shop_name']);
         }
         if (!mounted) return;
-        if (data['profile']['role'] == 'vendor') {
-          context.go('/vendor/dashboard');
-        } else {
-          setState(() => _errorMessage = 'Ce compte n\'est pas un compte vendeur.');
-        }
+        data['profile']['role'] == 'vendor'
+            ? context.go('/vendor/dashboard')
+            : setState(() => _errorMessage = 'Ce compte n\'est pas un compte vendeur.');
       } else {
         setState(() => _errorMessage = data['message'] ?? data['error']);
       }
-    } catch (e) {
+    } catch (_) {
       setState(() => _errorMessage = 'Impossible de joindre le serveur.');
     } finally {
       setState(() => _isLoading = false);
@@ -73,124 +66,143 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
   }
 
   @override
-  void dispose() {
-    _waCtrl.dispose();
-    _passCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _waCtrl.dispose(); _passCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 48),
-              Center(
-                child: Image.asset(
-                  'assets/images/logo_flashgo.png',
-                  width:  80,
-                  height: 80,
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // ── En-tête branded ─────────────────────────────
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end:   Alignment.bottomRight,
+                colors: [AppColors.headerVendor, AppColors.background],
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Image.asset('assets/images/logo_flashgo.png', width: 40, height: 40),
+                        const SizedBox(width: 10),
+                        Text('FlashGo', style: AppTypography.displaySmall.copyWith(color: AppColors.cta)),
+                        const Spacer(),
+                        const SpeedStreak(width: 48, height: 28),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Text(
+                      _shopName != null ? 'Ravi de vous revoir,\n$_shopName !' : 'Bon retour\nsur FlashGo !',
+                      style: AppTypography.displayLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Gérez vos livraisons express au Bénin', style: AppTypography.bodyMedium),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-              Text(
-                _shopName != null
-                    ? 'Ravi de vous revoir,\n$_shopName !'
-                    : 'Ravi de vous revoir !',
-                style: const TextStyle(
-                  color:      Colors.white,
-                  fontSize:   26,
-                  fontWeight: FontWeight.bold,
-                  height:     1.3,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Connecte-toi pour gérer tes livraisons',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-              const SizedBox(height: 40),
-              FlashGoTextField(
-                label:        'Numéro WhatsApp',
-                hint:         '+22960000000',
-                controller:   _waCtrl,
-                keyboardType: TextInputType.phone,
-              ),
-              FlashGoTextField(
-                label:      'Mot de passe',
-                hint:       '••••••••',
-                controller: _passCtrl,
-                obscure:    true,
-              ),
-              if (_errorMessage != null) ...[
-                Container(
-                  padding:    const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color:        Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border:       Border.all(color: Colors.red),
+            ),
+          ),
+
+          // ── Formulaire ──────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FlashGoTextField(
+                    label:        'Numéro WhatsApp',
+                    hint:         '+22960000000',
+                    controller:   _waCtrl,
+                    keyboardType: TextInputType.phone,
+                    prefix:       const Icon(Icons.phone_android, color: AppColors.accent, size: 18),
                   ),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  const SizedBox(height: 4),
+                  FlashGoTextField(
+                    label:      'Mot de passe',
+                    hint:       '••••••••',
+                    controller: _passCtrl,
+                    obscure:    true,
+                    prefix:     const Icon(Icons.lock_outline, color: AppColors.accent, size: 18),
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              FlashGoButton(
-                label:     'Se connecter',
-                color:     const Color(0xFF22D3EE),
-                onPressed: _login,
-                isLoading: _isLoading,
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Mot de passe oublié ?',
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: GestureDetector(
-                  onTap: () => context.go('/vendor/register'),
-                  child: const Text(
-                    'Pas encore de compte ? S\'inscrire',
-                    style: TextStyle(
-                      color:           Color(0xFF22D3EE),
-                      fontSize:        14,
-                      decoration:      TextDecoration.underline,
-                      decorationColor: Color(0xFF22D3EE),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {},
+                      child: Text('Mot de passe oublié ?',
+                        style: AppTypography.label.copyWith(color: AppColors.textDisabled)),
                     ),
                   ),
-                ),
+                  if (_errorMessage != null) ...[
+                    Container(
+                      padding:    const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:        AppColors.danger.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border:       Border.all(color: AppColors.danger.withOpacity(0.5)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, color: AppColors.danger, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(_errorMessage!,
+                          style: AppTypography.label.copyWith(color: AppColors.danger))),
+                      ]),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const SizedBox(height: 8),
+                  FlashGoButton(
+                    label:     'Se connecter',
+                    icon:      Icons.arrow_forward,
+                    onPressed: _login,
+                    isLoading: _isLoading,
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => context.go('/vendor/register'),
+                      child: Text.rich(TextSpan(children: [
+                        TextSpan(text: 'Pas de compte ? ',
+                          style: AppTypography.bodyMedium.copyWith(color: AppColors.textDisabled)),
+                        TextSpan(text: 'Créer ma boutique',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w600,
+                          )),
+                      ])),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(children: [
+                    const Expanded(child: Divider(color: Colors.white10)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('ou', style: AppTypography.label.copyWith(color: AppColors.textFaint)),
+                    ),
+                    const Expanded(child: Divider(color: Colors.white10)),
+                  ]),
+                  const SizedBox(height: 16),
+                  FlashGoButton(
+                    label:     'Espace Livreur →',
+                    color:     AppColors.surfaceVariant,
+                    onPressed: () => context.go('/driver/login'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 40),
-              const Row(children: [
-                Expanded(child: Divider(color: Colors.white12)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('ou', style: TextStyle(color: Colors.white38)),
-                ),
-                Expanded(child: Divider(color: Colors.white12)),
-              ]),
-              const SizedBox(height: 20),
-              FlashGoButton(
-                label:     'Je suis livreur →',
-                color:     const Color(0xFF1E2D3D),
-                onPressed: () => context.go('/driver/login'),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

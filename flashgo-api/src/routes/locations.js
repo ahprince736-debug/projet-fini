@@ -8,7 +8,11 @@ const verifyJWT  = require('../middleware/auth');
 // Le livreur envoie sa position GPS toutes les 100m
 router.put('/driver', verifyJWT, async (req, res) => {
   try {
-    const { driver_id, lat, lng } = req.body;
+    // Sécurité : on identifie le livreur via le token JWT vérifié,
+    // jamais via une valeur envoyée par le client (ex-faille IDOR :
+    // un utilisateur pouvait écraser la position de n'importe quel autre livreur).
+    const driver_id = req.user.id;
+    const { lat, lng } = req.body;
 
     if (!lat || !lng) {
       return res.status(400).json({ error: 'Coordonnées GPS manquantes' });

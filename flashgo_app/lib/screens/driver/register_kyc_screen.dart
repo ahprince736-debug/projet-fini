@@ -11,6 +11,8 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../widgets/flashgo_button.dart';
 import '../../widgets/flashgo_textfield.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class DriverRegisterScreen extends StatefulWidget {
   const DriverRegisterScreen({super.key});
@@ -47,7 +49,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   Future<void> _pickPhoto(bool isProfile) async {
     final source = await showModalBottomSheet<ImageSource>(
       context:         context,
-      backgroundColor: const Color(0xFF102A43),
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -56,17 +58,16 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Choisir la source',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Choisir la source', style: AppTypography.displaySmall),
             const SizedBox(height: 20),
             ListTile(
-              leading:  const Icon(Icons.camera_alt, color: Color(0xFF22D3EE)),
-              title:    const Text('Caméra', style: TextStyle(color: Colors.white)),
+              leading:  const Icon(Icons.camera_alt, color: AppColors.accent),
+              title:    Text('Caméra', style: AppTypography.bodyLarge),
               onTap:    () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading:  const Icon(Icons.photo_library, color: Color(0xFFBEF264)),
-              title:    const Text('Galerie', style: TextStyle(color: Colors.white)),
+              leading:  const Icon(Icons.photo_library, color: AppColors.cta),
+              title:    Text('Galerie', style: AppTypography.bodyLarge),
               onTap:    () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
@@ -143,7 +144,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation:       0,
@@ -151,8 +152,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
           icon:      const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Inscription Livreur',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Inscription Livreur', style: AppTypography.displaySmall),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -213,17 +213,11 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               ),
 
               // Section KYC
-              const Text('Documents obligatoires',
-                style: TextStyle(
-                  color:      Colors.white,
-                  fontSize:   16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Documents obligatoires', style: AppTypography.displaySmall),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Ces documents sont stockés de façon sécurisée et privée.',
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                style: AppTypography.label.copyWith(color: AppColors.textDisabled),
               ),
               const SizedBox(height: 16),
 
@@ -250,19 +244,19 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                 Container(
                   padding:    const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color:        Colors.red.withOpacity(0.1),
+                    color:        AppColors.danger.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border:       Border.all(color: Colors.red),
+                    border:       Border.all(color: AppColors.danger),
                   ),
                   child: Text(_errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13)),
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.danger)),
                 ),
                 const SizedBox(height: 16),
               ],
 
               FlashGoButton(
                 label:     'Soumettre mon dossier',
-                color:     const Color(0xFFF59E0B),
+                color:     AppColors.warning,
                 onPressed: _register,
                 isLoading: _isLoading,
               ),
@@ -271,13 +265,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               Center(
                 child: GestureDetector(
                   onTap: () => context.go('/driver/login'),
-                  child: const Text(
+                  child: Text(
                     'Déjà inscrit ? Se connecter',
-                    style: TextStyle(
-                      color:      Color(0xFF22D3EE),
-                      fontSize:   14,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color:      AppColors.accent,
                       decoration: TextDecoration.underline,
-                      decorationColor: Color(0xFF22D3EE),
+                      decorationColor: AppColors.accent,
                     ),
                   ),
                 ),
@@ -313,11 +306,11 @@ class _KycUploadZone extends StatelessWidget {
         width:  double.infinity,
         height: 120,
         decoration: BoxDecoration(
-          color:        const Color(0xFF1E2D3D),
+          color:        AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: photo != null
-                ? const Color(0xFF22C55E)
+                ? AppColors.success
                 : Colors.white24,
             width: 1.5,
             style: BorderStyle.solid,
@@ -333,7 +326,7 @@ class _KycUploadZone extends StatelessWidget {
                     Container(
                       color: Colors.black45,
                       child: const Center(
-                        child: Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 40),
+                        child: Icon(Icons.check_circle, color: AppColors.success, size: 40),
                       ),
                     ),
                   ],
@@ -345,10 +338,10 @@ class _KycUploadZone extends StatelessWidget {
                   Icon(icon, color: Colors.white38, size: 32),
                   const SizedBox(height: 8),
                   Text(label,
-                    style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                    style: AppTypography.label.copyWith(color: AppColors.textTertiary)),
                   const SizedBox(height: 4),
-                  const Text('Caméra ou Galerie',
-                    style: TextStyle(color: Colors.white24, fontSize: 11)),
+                  Text('Caméra ou Galerie',
+                    style: AppTypography.label.copyWith(color: AppColors.textFaint, fontSize: 11)),
                 ],
               ),
       ),

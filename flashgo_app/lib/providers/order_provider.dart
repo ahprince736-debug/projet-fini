@@ -94,11 +94,11 @@ class OrderNotifier extends StateNotifier<OrderState> {
   }
 
   Future<bool> validateOtp(
-      String orderId, String otpInput, String driverId) async {
+      String orderId, String otpInput) async {
     try {
       await ApiService.patch(
         '${ApiConfig.orders}/$orderId/validate-otp',
-        {'otp_input': otpInput, 'driver_id': driverId},
+        {'otp_input': otpInput},
       );
       return true;
     } on ApiException {

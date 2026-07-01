@@ -1,5 +1,6 @@
 // lib/widgets/flashgo_textfield.dart
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class FlashGoTextField extends StatefulWidget {
   final String label;
@@ -48,20 +49,17 @@ class _FlashGoTextFieldState extends State<FlashGoTextField> {
           keyboardType:  widget.keyboardType,
           validator:     widget.validator,
           // ── Fix bug suppression ──────────────────────────
+          // Note : `enableInteractiveSelection: true` active déjà, par défaut,
+          // copier/couper/coller/tout sélectionner — `toolbarOptions` (déprécié
+          // depuis Flutter 3.3+) n'apporte donc plus rien ici.
           enableInteractiveSelection: true,
-          toolbarOptions: const ToolbarOptions(
-            copy:        true,
-            cut:         true,
-            paste:       true,
-            selectAll:   true,
-          ),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText:      widget.hint,
             hintStyle:     const TextStyle(color: Colors.white38),
             prefixIcon:    widget.prefix,
             filled:        true,
-            fillColor:     const Color(0xFF1E2D3D),
+            fillColor:     AppColors.surfaceVariant,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:   BorderSide.none,
@@ -69,7 +67,7 @@ class _FlashGoTextFieldState extends State<FlashGoTextField> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:   const BorderSide(
-                color: Color(0xFF22D3EE), width: 1.5),
+                color: AppColors.accent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

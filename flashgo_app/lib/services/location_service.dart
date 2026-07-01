@@ -1,6 +1,7 @@
 // lib/services/location_service.dart
 // Gère l'envoi de la position GPS du livreur toutes les 100m
 
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
 import '../config/api_config.dart';
@@ -8,24 +9,33 @@ import '../config/api_config.dart';
 class LocationService {
   static double? _lastLat;
   static double? _lastLng;
-  static const double _minDistance = 100; // mètres minimum avant envoi
+  static const double _minDistance = 100; // mètres minimum entre deux envois
+
+  // Référence au stream — indispensable pour pouvoir l'annuler dans stopTracking().
+  // Avant ce correctif, le stream continuait à tourner même après déconnexion
+  // du livreur, drainant la batterie et générant des appels API inutiles
+  // (fuite mémoire + fuite réseau).
+  static StreamSubscription<Position>? _positionSub;
 
   static Future<void> startTracking(String driverId) async {
-    // Vérifier les permissions GPS
+    // Annuler un éventuel tracking précédent avant d'en démarrer un nouveau
+    await _positionSub?.cancel();
+    _positionSub = null;
+
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
+    if (permission == LocationPermission.deniedForever) return;
 
-    // Écouter les changements de position
-    Geolocator.getPositionStream(
+    _positionSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy:       LocationAccuracy.high,
         distanceFilter: 50,
       ),
     ).listen((Position position) async {
-      // Vérifier si on s'est déplacé de plus de 100m
+      // Filtre distance : n'envoie que si déplacement > 100m
       if (_lastLat != null && _lastLng != null) {
         final distance = Geolocator.distanceBetween(
           _lastLat!, _lastLng!,
@@ -34,24 +44,25 @@ class LocationService {
         if (distance < _minDistance) return;
       }
 
-      // Envoyer la position à l'API
+      // Note : driver_id retiré du body — le backend l'extrait maintenant
+      // directement du token JWT (correction IDOR appliquée en Phase A).
       try {
         await ApiService.put(ApiConfig.locationsDriver, {
-          'driver_id': driverId,
-          'lat':       position.latitude,
-          'lng':       position.longitude,
+          'lat': position.latitude,
+          'lng': position.longitude,
         });
-
         _lastLat = position.latitude;
         _lastLng = position.longitude;
-      } catch (e) {
-        // Silencieux si pas de connexion
+      } catch (_) {
+        // Silencieux si pas de connexion — l'OfflineSyncService prend le relais
       }
     });
   }
 
-  static void stopTracking() {
-    _lastLat = null;
-    _lastLng = null;
+  static Future<void> stopTracking() async {
+    await _positionSub?.cancel();
+    _positionSub = null;
+    _lastLat     = null;
+    _lastLng     = null;
   }
 }

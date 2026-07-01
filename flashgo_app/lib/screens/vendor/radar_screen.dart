@@ -10,8 +10,11 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/api_config.dart';
+import '../../theme/app_typography.dart';
 import '../../services/local_storage.dart' as ls;
+import '../../utils/geo_parser.dart';
 import '../../widgets/flashgo_button.dart';
+import '../../theme/app_colors.dart';
 
 class RadarScreen extends StatefulWidget {
   final String orderId;
@@ -73,11 +76,13 @@ class _RadarScreenState extends State<RadarScreen> {
         .eq('driver_id', driverId)
         .listen((data) {
           if (data.isNotEmpty && mounted) {
-            // Note : les coordonnées sont stockées en PostGIS
-            // On récupère lat/lng depuis les métadonnées
-            setState(() {
-              _driverPosition = const LatLng(6.3750, 2.3950);
-            });
+            // Décodage du champ `geom` (geography PostGIS, format EWKB hex)
+            final position = parseGeographyPoint(data.first['geom']);
+            if (position != null) {
+              setState(() {
+                _driverPosition = position;
+              });
+            }
           }
         });
   }
@@ -91,7 +96,7 @@ class _RadarScreenState extends State<RadarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation:       0,
@@ -101,11 +106,11 @@ class _RadarScreenState extends State<RadarScreen> {
         ),
         title: const Text(
           'Suivi du livreur',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: AppTypography.displaySmall,
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : Stack(
               children: [
 
@@ -135,9 +140,9 @@ class _RadarScreenState extends State<RadarScreen> {
                             decoration: BoxDecoration(
                               color:  Colors.white,
                               shape:  BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF006D77), width: 3),
+                              border: Border.all(color: AppColors.brandSeed, width: 3),
                             ),
-                            child: const Icon(Icons.store, color: Color(0xFF006D77), size: 20),
+                            child: const Icon(Icons.store, color: AppColors.brandSeed, size: 20),
                           ),
                         ),
 
@@ -149,12 +154,12 @@ class _RadarScreenState extends State<RadarScreen> {
                             height: 50,
                             child:  Container(
                               decoration: BoxDecoration(
-                                color:  const Color(0xFFBEF264),
+                                color:  AppColors.cta,
                                 shape:  BoxShape.circle,
                                 border: Border.all(color: Colors.white, width: 2),
                                 boxShadow: [
                                   BoxShadow(
-                                    color:      const Color(0xFFBEF264).withOpacity(0.4),
+                                    color:      AppColors.cta.withOpacity(0.4),
                                     blurRadius: 12,
                                     spreadRadius: 3,
                                   ),
@@ -176,7 +181,7 @@ class _RadarScreenState extends State<RadarScreen> {
                   child: Container(
                     padding:     const EdgeInsets.all(20),
                     decoration: const BoxDecoration(
-                      color:        Color(0xFF102A43),
+                      color:        AppColors.surface,
                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                     ),
                     child: Column(
@@ -201,8 +206,8 @@ class _RadarScreenState extends State<RadarScreen> {
                               height: 56,
                               decoration: BoxDecoration(
                                 shape:  BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF22D3EE), width: 2),
-                                color:  const Color(0xFF1E2D3D),
+                                border: Border.all(color: AppColors.accent, width: 2),
+                                color:  AppColors.surfaceVariant,
                               ),
                               child: const Icon(Icons.person, color: Colors.white54, size: 30),
                             ),
@@ -217,15 +222,14 @@ class _RadarScreenState extends State<RadarScreen> {
                                     _orderData?['driver_id'] != null
                                         ? 'Livreur assigné'
                                         : 'En attente d\'un livreur...',
-                                    style: const TextStyle(
-                                      color:      Colors.white,
+                                    style: AppTypography.bodyLarge.copyWith(
                                       fontWeight: FontWeight.bold,
                                       fontSize:   15,
                                     ),
                                   ),
                                   const Text(
                                     'Arrivée estimée dans 5 min',
-                                    style: TextStyle(color: Color(0xFF22D3EE), fontSize: 13),
+                                    style: AppTypography.label.copyWith(color: AppColors.accent),
                                   ),
                                 ],
                               ),
@@ -234,12 +238,12 @@ class _RadarScreenState extends State<RadarScreen> {
                             // Bouton WhatsApp
                             Container(
                               decoration: BoxDecoration(
-                                color:  const Color(0xFF25D366).withOpacity(0.2),
+                                color:  AppColors.whatsapp.withOpacity(0.2),
                                 shape:  BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF25D366)),
+                                border: Border.all(color: AppColors.whatsapp),
                               ),
                               child: IconButton(
-                                icon:      const Icon(Icons.message, color: Color(0xFF25D366)),
+                                icon:      const Icon(Icons.message, color: AppColors.whatsapp),
                                 onPressed: () {
                                   // TODO : ouvrir WhatsApp
                                 },

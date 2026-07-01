@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../services/local_storage.dart';
 import '../../widgets/flashgo_button.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -65,7 +67,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:         Text('Entre ton numéro MoMo'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -75,7 +77,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:         Text('Solde minimum : 500 FCFA'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
         ),
       );
       return;
@@ -102,7 +104,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content:         Text('✅ Demande enregistrée. Virement à 19h00.'),
-            backgroundColor: Color(0xFF22C55E),
+            backgroundColor: AppColors.success,
           ),
         );
         _momoCtrl.clear();
@@ -112,7 +114,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:         Text(data['message'] ?? 'Erreur'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -120,7 +122,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:         Text('Impossible de joindre le serveur.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
         ),
       );
     } finally {
@@ -131,7 +133,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation:       0,
@@ -139,11 +141,10 @@ class _WalletScreenState extends State<WalletScreen> {
           icon:      const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Mon Portefeuille',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Mon Portefeuille', style: AppTypography.displaySmall),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -156,21 +157,20 @@ class _WalletScreenState extends State<WalletScreen> {
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF006D77), Color(0xFF102A43)],
+                        colors: [AppColors.brandSeed, AppColors.surface],
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Column(
                       children: [
-                        const Text('Solde disponible',
-                          style: TextStyle(color: Colors.white54, fontSize: 14)),
+                        Text('Solde disponible', style: AppTypography.bodyMedium.copyWith(color: AppColors.textDisabled)),
                         const SizedBox(height: 8),
                         Text(
                           '$_balance FCFA',
-                          style: const TextStyle(
-                            color:      Color(0xFF22C55E),
-                            fontSize:   42,
-                            fontWeight: FontWeight.bold,
+                          style: AppTypography.codeDisplay.copyWith(
+                            color:         AppColors.success,
+                            fontSize:      42,
+                            letterSpacing: 1,
                           ),
                         ),
                       ],
@@ -179,23 +179,17 @@ class _WalletScreenState extends State<WalletScreen> {
                   const SizedBox(height: 24),
 
                   // Section retrait
-                  const Text('Demander un retrait MoMo',
-                    style: TextStyle(
-                      color:      Colors.white,
-                      fontSize:   16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Demander un retrait MoMo', style: AppTypography.displaySmall.copyWith(fontSize: 16)),
                   const SizedBox(height: 12),
 
                   // Sélection réseau
                   Row(
                     children: [
-                      _NetworkChip(label: 'MTN MoMo',    value: 'mtn',   selected: _network, color: const Color(0xFFFFC107), onTap: (v) => setState(() => _network = v)),
+                      _NetworkChip(label: 'MTN MoMo',    value: 'mtn',   selected: _network, color: AppColors.walletAmber, onTap: (v) => setState(() => _network = v)),
                       const SizedBox(width: 8),
-                      _NetworkChip(label: 'Moov Money',  value: 'moov',  selected: _network, color: const Color(0xFF1565C0), onTap: (v) => setState(() => _network = v)),
+                      _NetworkChip(label: 'Moov Money',  value: 'moov',  selected: _network, color: AppColors.walletBlue, onTap: (v) => setState(() => _network = v)),
                       const SizedBox(width: 8),
-                      _NetworkChip(label: 'Celtis Cash', value: 'celtis',selected: _network, color: const Color(0xFF2E7D32), onTap: (v) => setState(() => _network = v)),
+                      _NetworkChip(label: 'Celtis Cash', value: 'celtis',selected: _network, color: AppColors.walletGreen, onTap: (v) => setState(() => _network = v)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -204,12 +198,12 @@ class _WalletScreenState extends State<WalletScreen> {
                   TextField(
                     controller:   _momoCtrl,
                     keyboardType: TextInputType.phone,
-                    style: const TextStyle(color: Colors.white),
+                    style: AppTypography.bodyLarge,
                     decoration: InputDecoration(
                       hintText:      'Numéro MoMo (ex: +22960000000)',
-                      hintStyle:     const TextStyle(color: Colors.white38),
+                      hintStyle:     AppTypography.bodyMedium.copyWith(color: AppColors.textDisabled),
                       filled:        true,
-                      fillColor:     const Color(0xFF1E2D3D),
+                      fillColor:     AppColors.surfaceVariant,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide:   BorderSide.none,
@@ -217,9 +211,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Fonds virés à 19h00 en un seul bloc pour annuler les frais.',
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                    style: AppTypography.label.copyWith(color: AppColors.textDisabled, fontSize: 12),
                   ),
                   const SizedBox(height: 16),
 
@@ -231,19 +225,13 @@ class _WalletScreenState extends State<WalletScreen> {
                   const SizedBox(height: 32),
 
                   // Historique transactions
-                  const Text('Historique',
-                    style: TextStyle(
-                      color:      Colors.white,
-                      fontSize:   16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Historique', style: AppTypography.displaySmall.copyWith(fontSize: 16)),
                   const SizedBox(height: 12),
 
                   if (_transactions.isEmpty)
-                    const Center(
+                    Center(
                       child: Text('Aucune transaction pour l\'instant.',
-                        style: TextStyle(color: Colors.white38, fontSize: 13)),
+                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textDisabled, fontSize: 13)),
                     )
                   else
                     ListView.builder(
@@ -257,7 +245,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           margin:  const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color:        const Color(0xFF102A43),
+                            color:        AppColors.surface,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -265,25 +253,21 @@ class _WalletScreenState extends State<WalletScreen> {
                               Icon(
                                 isEarning ? Icons.arrow_downward : Icons.arrow_upward,
                                 color: isEarning
-                                    ? const Color(0xFF22C55E)
-                                    : Colors.red,
+                                    ? AppColors.success
+                                    : AppColors.danger,
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   isEarning ? 'Gain course' : 'Retrait MoMo',
-                                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  style: AppTypography.bodyLarge.copyWith(fontSize: 13),
                                 ),
                               ),
                               Text(
                                 '${isEarning ? '+' : '-'}${tx['amount']} FCFA',
-                                style: TextStyle(
-                                  color:      isEarning
-                                      ? const Color(0xFF22C55E)
-                                      : Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize:   14,
+                                style: AppTypography.codeInline.copyWith(
+                                  color: isEarning ? AppColors.success : AppColors.danger,
                                 ),
                               ),
                             ],
@@ -323,7 +307,7 @@ class _NetworkChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color:        isSelected ? color.withOpacity(0.2) : const Color(0xFF1E2D3D),
+            color:        isSelected ? color.withOpacity(0.2) : AppColors.surfaceVariant,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? color : Colors.transparent,
@@ -332,8 +316,8 @@ class _NetworkChip extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color:      isSelected ? color : Colors.white38,
+            style: AppTypography.label.copyWith(
+              color:      isSelected ? color : AppColors.textDisabled,
               fontSize:   11,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),

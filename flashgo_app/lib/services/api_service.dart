@@ -6,6 +6,27 @@ import 'package:http/http.dart' as http;
 import 'local_storage.dart';
 
 class ApiService {
+  /// Callback global déclenché quand le serveur renvoie 401 (token expiré
+  /// ou invalide). Branché depuis main.dart, car ce service statique n'a
+  /// pas de BuildContext pour naviguer lui-même.
+  ///
+  /// Avant ce correctif : un 401 remontait juste comme une ApiException
+  /// générique, gérée (ou pas) au cas par cas dans chaque écran — l'usager
+  /// pouvait rester bloqué sur un écran qui échoue en boucle, sans jamais
+  /// être renvoyé vers le login.
+  static Future<void> Function(String? role)? onSessionExpired;
+
+  static bool _isHandlingExpiry = false;
+
+  static void _handleSessionExpiry() {
+    if (_isHandlingExpiry) return; // évite les déclenchements multiples
+    _isHandlingExpiry = true;
+    LocalStorage.getRole().then((role) async {
+      await LocalStorage.clearAll();
+      await onSessionExpired?.call(role);
+      _isHandlingExpiry = false;
+    });
+  }
 
   // ── GET ────────────────────────────────────────────────
   static Future<Map<String, dynamic>> get(String url) async {
@@ -85,6 +106,10 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
+    }
+
+    if (response.statusCode == 401) {
+      _handleSessionExpiry();
     }
 
     // Erreur : on lance une exception avec le message du serveur

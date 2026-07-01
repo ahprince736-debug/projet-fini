@@ -8,7 +8,10 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../services/local_storage.dart';
 import '../../services/secure_otp_storage.dart';
+import '../../services/offline_sync_service.dart';
 import '../../widgets/flashgo_button.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class OtpValidationScreen extends StatefulWidget {
   final String orderId;
@@ -44,7 +47,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:         Text('Entre les 5 chiffres du code'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -56,8 +59,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
 
     try {
       // Essayer d'abord en ligne
-      final token    = await LocalStorage.getToken();
-      final driverId = await LocalStorage.getUserId();
+      final token = await LocalStorage.getToken();
 
       final response = await http.patch(
         Uri.parse('${ApiConfig.orders}/${widget.orderId}/validate-otp'),
@@ -67,7 +69,6 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
         },
         body: jsonEncode({
           'otp_input': _otpInput,
-          'driver_id': driverId,
         }),
       ).timeout(const Duration(seconds: 5));
 
@@ -93,6 +94,9 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
       );
 
       if (isValid) {
+        // Mémorisée pour être confirmée au serveur dès qu'une connexion
+        // redevient disponible (sinon le paiement ne serait jamais déclenché).
+        await OfflineSyncService.queueValidation(widget.orderId, _otpInput);
         _onSuccess();
       } else {
         setState(() {
@@ -112,12 +116,12 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF102A43),
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 70),
+            const Icon(Icons.check_circle, color: AppColors.success, size: 70),
             const SizedBox(height: 16),
             const Text('Livraison validée !',
               style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
@@ -151,7 +155,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
               ? '🚫 Trop de tentatives. Contacte le support.'
               : '❌ Code incorrect. $_attemptsRemaining tentative(s) restante(s).',
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.danger,
       ),
     );
   }
@@ -159,7 +163,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation:       0,
@@ -180,8 +184,8 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
             Icon(
               _isBlocked ? Icons.lock : Icons.lock_open,
               color: _isBlocked
-                  ? Colors.red
-                  : const Color(0xFFBEF264),
+                  ? AppColors.danger
+                  : AppColors.cta,
               size: 80,
             ),
             const SizedBox(height: 24),
@@ -219,15 +223,11 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
                     keyboardType: TextInputType.number,
                     maxLength:    1,
                     textAlign:    TextAlign.center,
-                    style: const TextStyle(
-                      color:      Colors.white,
-                      fontSize:   24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTypography.codeInline.copyWith(fontSize: 24),
                     decoration: InputDecoration(
                       counterText: '',
                       filled:      true,
-                      fillColor:   const Color(0xFF1E2D3D),
+                      fillColor:   AppColors.surfaceVariant,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide:   BorderSide.none,
@@ -235,7 +235,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide:   const BorderSide(
-                          color: Color(0xFFBEF264), width: 2),
+                          color: AppColors.cta, width: 2),
                       ),
                     ),
                     onChanged: (value) {
@@ -258,7 +258,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
                 'Tentatives restantes : $_attemptsRemaining / 3',
                 style: TextStyle(
                   color:      _attemptsRemaining <= 1
-                      ? Colors.red
+                      ? AppColors.danger
                       : Colors.white54,
                   fontSize:   13,
                   fontWeight: FontWeight.w500,
@@ -269,7 +269,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
               const Text(
                 '🚫 BLOQUÉ — Contacte le support FlashGo',
                 style: TextStyle(
-                  color:      Colors.red,
+                  color:      AppColors.danger,
                   fontSize:   13,
                   fontWeight: FontWeight.bold,
                 ),
@@ -281,17 +281,17 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color:        Colors.orange.withOpacity(0.1),
+                  color:        AppColors.warning.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border:       Border.all(color: Colors.orange),
+                  border:       Border.all(color: AppColors.warning),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.wifi_off, color: Colors.orange, size: 14),
+                    Icon(Icons.wifi_off, color: AppColors.warning, size: 14),
                     SizedBox(width: 6),
                     Text('Validation locale cryptée active (Zone Blanche)',
-                      style: TextStyle(color: Colors.orange, fontSize: 11)),
+                      style: TextStyle(color: AppColors.warning, fontSize: 11)),
                   ],
                 ),
               ),

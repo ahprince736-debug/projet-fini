@@ -99,18 +99,81 @@ router.get('/nearby', verifyJWT, async (req, res) => {
 // Mes commandes (vendeur)
 router.get('/mine', verifyJWT, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    // Pagination : `page` commence à 1, `limit` max 50 par appel.
+    // Avant cette correction, toutes les commandes étaient renvoyées en
+    // un seul bloc — un vendeur actif avec 200+ commandes recevait un
+    // payload énorme à chaque chargement du dashboard.
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const from  = (page - 1) * limit;
+    const to    = from + limit - 1;
+
+    // Sélection de colonnes restreinte : on ne renvoie que ce que le
+    // dashboard affiche réellement (évite de transporter des champs
+    // lourds comme les geom PostGIS sur chaque appel).
+    const { data, error, count } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, status, client_address, prix_fcfa, driver_id, created_at', { count: 'exact' })
       .eq('vendor_id', req.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) return res.status(500).json({ error: error.message });
 
-    res.json({ orders: data });
+    res.json({
+      orders:    data,
+      page,
+      limit,
+      total:     count,
+      has_more:  to < (count - 1),
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /orders/:id ────────────────────────────────────────
+// Récupère une commande. Deux modes :
+//  - Authentifié (vendeur/livreur de la commande) : détails complets
+//  - Public, sans token (page de tracking ouverte via lien SMS) :
+//    champs limités uniquement — l'UUID de la commande agit comme
+//    secret d'accès (non énumérable), comme un lien de paiement Stripe.
+//    Jamais de otp_hash ni de données financières dans ce mode.
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const authHeader = req.headers['authorization'];
+
+    let authenticatedUserId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const { data } = await supabase.auth.getUser(authHeader.split(' ')[1]);
+      authenticatedUserId = data?.user?.id || null;
+    }
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('id, vendor_id, driver_id, status, client_address, client_phone, cargo_type, prix_fcfa, created_at')
+      .eq('id', id)
+      .single();
+
+    if (error || !order) {
+      return res.status(404).json({ error: 'Commande introuvable' });
+    }
+
+    const isParticipant = authenticatedUserId &&
+      (authenticatedUserId === order.vendor_id || authenticatedUserId === order.driver_id);
+
+    if (isParticipant) {
+      return res.json({ order });
+    }
+
+    // Mode public restreint : on retire les données sensibles/financières
+    const { vendor_id, prix_fcfa, ...publicOrder } = order;
+    return res.json({ order: publicOrder });
+  } catch (err) {
+    console.error('Erreur GET /orders/:id', err);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -193,7 +256,27 @@ router.patch('/:id/dispatch', verifyJWT, async (req, res) => {
 router.patch('/:id/validate-otp', verifyJWT, async (req, res) => {
   try {
     const { id } = req.params;
-    const { otp_input, driver_id } = req.body;
+    const { otp_input } = req.body;
+
+    // Sécurité : le driver_id vient du JWT vérifié, jamais du body.
+    // Avant ce correctif, un driver_id arbitraire envoyé par le client
+    // permettait de réinitialiser le compteur de tentatives à chaque essai
+    // et donc de brute-forcer le code OTP (5 chiffres) sans jamais être bloqué.
+    const driver_id = req.user.id;
+
+    // Récupérer la commande et vérifier qu'elle est bien assignée à ce livreur
+    const { data: order } = await supabase
+      .from('orders')
+      .select('otp_hash, driver_id')
+      .eq('id', id)
+      .single();
+
+    if (!order || order.driver_id !== driver_id) {
+      return res.status(403).json({
+        error: 'Accès refusé',
+        message: 'Cette commande ne t\'est pas assignée.'
+      });
+    }
 
     // Vérifier les tentatives
     const { data: attempt } = await supabase
@@ -209,13 +292,6 @@ router.patch('/:id/validate-otp', verifyJWT, async (req, res) => {
         message: 'Trop de tentatives incorrectes. Contacte le support FlashGo.'
       });
     }
-
-    // Récupérer le hash OTP de la commande
-    const { data: order } = await supabase
-      .from('orders')
-      .select('otp_hash')
-      .eq('id', id)
-      .single();
 
     // Hasher la saisie et comparer
     const inputHash = crypto.createHash('sha256').update(otp_input).digest('hex');
@@ -236,10 +312,48 @@ router.patch('/:id/validate-otp', verifyJWT, async (req, res) => {
     }
 
     // OTP correct → livraison validée (le trigger SQL gère le paiement)
-    await supabase
+    //
+    // Garde anti race-condition : la mise à jour n'a lieu QUE si la commande
+    // est encore au statut 'in_transit'. Si deux requêtes arrivent en
+    // parallèle (ex : la synchronisation hors-ligne qui rejoue une validation
+    // pendant que le livreur la refait en direct après reconnexion), seule
+    // la première réussit réellement — Postgres garantit l'atomicité au
+    // niveau ligne. Ça évite un double déclenchement du trigger de paiement.
+    const { data: updated, error: updateError } = await supabase
       .from('orders')
       .update({ status: 'delivered' })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', 'in_transit')
+      .select()
+      .maybeSingle();
+
+    if (updateError) {
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    if (!updated) {
+      // Soit déjà validée par un appel concurrent (cas attendu et inoffensif
+      // avec la sync hors-ligne → on répond succès pour que la file
+      // d'attente côté app se vide normalement), soit la commande n'était
+      // pas dans un état permettant la livraison.
+      const { data: current } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('id', id)
+        .single();
+
+      if (current?.status === 'delivered') {
+        return res.json({
+          message: '✅ Livraison déjà validée.',
+          alreadyValidated: true
+        });
+      }
+
+      return res.status(409).json({
+        error: 'Statut invalide',
+        message: 'Cette commande n\'est pas dans un état permettant la validation.'
+      });
+    }
 
     res.json({ message: '✅ Livraison validée ! Paiement effectué.' });
 

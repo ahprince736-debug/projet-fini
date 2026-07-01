@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════════
+# FlashGo — .gitignore racine
+# ═══════════════════════════════════════════════════════════════════
+# Ce fichier s'applique à l'ensemble du monorepo (backend + frontend).
+# Chaque sous-dossier a également son propre .gitignore plus spécifique.
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Secrets & variables d'environnement ─────────────────────────────
+# NE JAMAIS versionner ces fichiers — ils contiennent des clés API,
+# mots de passe de base de données, tokens Supabase, etc.
+.env
+.env.*
+*.env
+!*.env.example        # Exception : les fichiers d'exemple sans vraies valeurs
+
+# ── Dépendances (régénérées par npm install / flutter pub get) ──────
+node_modules/
+.pub-cache/
+
+# ── Builds & artefacts compilés ─────────────────────────────────────
+build/
+dist/
+.dart_tool/
+*.apk
+*.ipa
+*.aab
+
+# ── Flutter spécifique ───────────────────────────────────────────────
+# Le dossier .flutter-plugins-dependencies est régénéré automatiquement
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/GeneratedPluginRegistrant.java
+**/android/key.properties           # Clés de signature — CRITIQUE, ne jamais versionner
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Pods/
+**/linux/.dart_tool/
+**/windows/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# ── IDEs ──────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/settings.json             # Settings personnels (pas launch.json)
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── Couverture de tests ───────────────────────────────────────────────
+coverage/
+lcov.info

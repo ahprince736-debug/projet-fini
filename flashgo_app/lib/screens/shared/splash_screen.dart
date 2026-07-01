@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/local_storage.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
+import '../../widgets/speed_streak.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -39,11 +42,16 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Motif signature derrière le logo — un seul endroit fort,
+            // évoque la vitesse/l'éclair du nom FlashGo.
+            const SpeedStreak(width: 90, height: 56),
+            const SizedBox(height: 8),
+
             // Logo FlashGo
             Image.asset(
               'assets/images/logo_flashgo.png',
@@ -51,26 +59,21 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 120,
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               '⚡ FLASHGO',
-              style: TextStyle(
-                color:         Colors.white,
+              style: AppTypography.displayLarge.copyWith(
                 fontSize:      32,
-                fontWeight:    FontWeight.bold,
                 letterSpacing: 4,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Livraison express au Bénin',
-              style: TextStyle(
-                color:    Colors.white54,
-                fontSize: 14,
-              ),
+              style: AppTypography.bodyMedium,
             ),
             const SizedBox(height: 48),
             const CircularProgressIndicator(
-              color: Color(0xFF22D3EE),
+              color: AppColors.accent,
             ),
           ],
         ),

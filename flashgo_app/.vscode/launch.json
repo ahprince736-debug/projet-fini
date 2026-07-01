@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FlashGo — Émulateur Android",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--dart-define=API_URL=http://10.0.2.2:3000"]
+    },
+    {
+      "name": "FlashGo — Vrai téléphone Wi-Fi",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--dart-define=API_URL=http://192.168.1.100:3000"],
+      "comment": "⚠️ Remplace 192.168.1.100 par l'IP de ton PC sur le réseau local"
+    },
+    {
+      "name": "FlashGo — Production",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--dart-define=API_URL=https://api.flashgo.bj"],
+      "flutterMode": "release"
+    }
+  ]
+}

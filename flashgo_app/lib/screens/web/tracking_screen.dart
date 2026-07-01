@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class TrackingScreen extends StatefulWidget {
   final String orderId;
@@ -23,7 +25,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Map?    _order;
   LatLng? _driverPosition;
   bool    _isLoading = true;
-  StreamSubscription? _realtimeSub;
+  Timer?  _pollingTimer;
 
   @override
   void initState() {
@@ -55,15 +57,27 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   void _startTracking(String driverId) {
     final supabase = Supabase.instance.client;
-    _realtimeSub = supabase
-        .from('driver_locations')
-        .stream(primaryKey: ['driver_id'])
-        .eq('driver_id', driverId)
-        .listen((data) {
-          if (data.isNotEmpty && mounted) {
-            setState(() => _driverPosition = const LatLng(6.375, 2.395));
+    // Le visiteur de cette page n'est PAS connecté (lien public envoyé par SMS),
+    // donc le flux temps réel direct sur driver_locations serait bloqué par RLS.
+    // On interroge à la place une fonction RPC publique et restreinte qui ne
+    // renvoie la position que si la commande est active — sans exposer la
+    // table driver_locations dans son ensemble.
+    _pollingTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
+      try {
+        final result = await supabase
+            .rpc('get_tracking_location', params: {'p_order_id': widget.orderId});
+        if (result is List && result.isNotEmpty && mounted) {
+          final row = result.first;
+          final lat = (row['lat'] as num?)?.toDouble();
+          final lng = (row['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            setState(() => _driverPosition = LatLng(lat, lng));
           }
-        });
+        }
+      } catch (_) {
+        // Échec silencieux d'un cycle de polling : on retente au prochain tick.
+      }
+    });
   }
 
   Future<void> _callDriver() async {
@@ -82,20 +96,20 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   @override
   void dispose() {
-    _realtimeSub?.cancel();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF102A43),
+        backgroundColor: AppColors.surface,
         elevation:       0,
         title: Row(
           children: [
-            const Icon(Icons.bolt, color: Color(0xFFBEF264), size: 20),
+            const Icon(Icons.bolt, color: AppColors.cta, size: 20),
             const SizedBox(width: 6),
             Text(
               'FlashGo — Colis #${widget.orderId.substring(0, 8)}',
@@ -105,7 +119,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : Column(
               children: [
 
@@ -131,7 +145,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               height: 50,
                               child:  Container(
                                 decoration: BoxDecoration(
-                                  color:  const Color(0xFFBEF264),
+                                  color:  AppColors.cta,
                                   shape:  BoxShape.circle,
                                   border: Border.all(color: Colors.white, width: 2),
                                 ),
@@ -157,14 +171,14 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         Container(
                           padding:    const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color:        const Color(0xFF102A43),
+                            color:        AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Row(
                             children: [
                               CircleAvatar(
                                 radius:          24,
-                                backgroundColor: Color(0xFF1E2D3D),
+                                backgroundColor: AppColors.surfaceVariant,
                                 child: Icon(Icons.person, color: Colors.white54),
                               ),
                               SizedBox(width: 12),
@@ -174,7 +188,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                                   Text('Livreur FlashGo',
                                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                   Text('En route vers vous',
-                                    style: TextStyle(color: Color(0xFF22D3EE), fontSize: 12)),
+                                    style: TextStyle(color: AppColors.accent, fontSize: 12)),
                                 ],
                               ),
                             ],
@@ -186,10 +200,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color:        const Color(0xFF0F1A0A),
+                            color:        AppColors.trackingGreenBg,
                             borderRadius: BorderRadius.circular(16),
                             border:       Border.all(
-                              color: const Color(0xFFBEF264),
+                              color: AppColors.cta,
                               width: 2,
                             ),
                           ),
@@ -197,7 +211,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             children: [
                               const Text('🔐 Votre code de sécurité',
                                 style: TextStyle(
-                                  color:      Color(0xFFBEF264),
+                                  color:      AppColors.cta,
                                   fontSize:   14,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -205,10 +219,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 _order?['otp_display'] ?? '• • • • •',
-                                style: const TextStyle(
-                                  color:         Colors.white,
+                                style: AppTypography.codeDisplay.copyWith(
                                   fontSize:      42,
-                                  fontWeight:    FontWeight.bold,
                                   letterSpacing: 12,
                                 ),
                               ),
@@ -236,7 +248,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                                 icon:      const Icon(Icons.phone),
                                 label:     const Text('Appeler'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1E2D3D),
+                                  backgroundColor: AppColors.surfaceVariant,
                                   foregroundColor: Colors.white,
                                   padding:         const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
@@ -252,7 +264,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                                 icon:      const Icon(Icons.message),
                                 label:     const Text('WhatsApp'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF25D366),
+                                  backgroundColor: AppColors.whatsapp,
                                   foregroundColor: Colors.white,
                                   padding:         const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(

@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../widgets/flashgo_button.dart';
 import '../../widgets/flashgo_textfield.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class VendorRegisterScreen extends StatefulWidget {
   const VendorRegisterScreen({super.key});
@@ -54,7 +56,7 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content:         Text('Compte créé ! Connecte-toi maintenant.'),
-            backgroundColor: Color(0xFF22C55E),
+            backgroundColor: AppColors.success,
           ),
         );
         context.go('/vendor/login');
@@ -71,7 +73,7 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -89,14 +91,9 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Créez votre\nespace vendeur',
-                  style: TextStyle(
-                    color:      Colors.white,
-                    fontSize:   28,
-                    fontWeight: FontWeight.bold,
-                    height:     1.2,
-                  ),
+                  style: AppTypography.displayLarge.copyWith(fontSize: 28, height: 1.2),
                 ),
                 const SizedBox(height: 32),
                 FlashGoTextField(
@@ -152,13 +149,13 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                   Container(
                     padding:    const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color:        Colors.red.withValues(alpha: 0.1),
+                      color:        AppColors.danger.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border:       Border.all(color: Colors.red),
+                      border:       Border.all(color: AppColors.danger),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.danger),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -172,13 +169,12 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                 Center(
                   child: GestureDetector(
                     onTap: () => context.go('/vendor/login'),
-                    child: const Text(
+                    child: Text(
                       'Déjà inscrit ? Se connecter',
-                      style: TextStyle(
-                        color:           Color(0xFF22D3EE),
-                        fontSize:        14,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color:           AppColors.accent,
                         decoration:      TextDecoration.underline,
-                        decorationColor: Color(0xFF22D3EE),
+                        decorationColor: AppColors.accent,
                       ),
                     ),
                   ),

@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:latlong2/latlong.dart';
+import '../utils/geo_parser.dart';
 
 // Stream Riverpod — écoute la position d'un livreur en temps réel
 final driverLocationProvider =
@@ -14,7 +15,8 @@ final driverLocationProvider =
       .eq('driver_id', driverId)
       .map((data) {
         if (data.isEmpty) return null;
-        // Note : coordonnées à adapter selon le format PostGIS retourné
-        return const LatLng(6.3703, 2.3912);
+        // Décodage du champ `geom` (type geography PostGIS),
+        // renvoyé par Supabase Realtime au format EWKB hexadécimal.
+        return parseGeographyPoint(data.first['geom']);
       });
 });

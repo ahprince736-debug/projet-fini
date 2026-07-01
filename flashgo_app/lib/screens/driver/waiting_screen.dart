@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 
 class DriverWaitingScreen extends StatefulWidget {
   const DriverWaitingScreen({super.key});
@@ -46,7 +48,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -61,38 +63,29 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen>
                   width:  100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color:  const Color(0xFF1E2D3D),
+                    color:  AppColors.surfaceVariant,
                     shape:  BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF22D3EE), width: 2),
+                    border: Border.all(color: AppColors.accent, width: 2),
                   ),
                   child: const Icon(
                     Icons.hourglass_top,
-                    color: Color(0xFF22D3EE),
+                    color: AppColors.accent,
                     size:  50,
                   ),
                 ),
               ),
               const SizedBox(height: 40),
 
-              const Text(
+              Text(
                 'Dossier en cours\nde vérification',
-                style: TextStyle(
-                  color:      Colors.white,
-                  fontSize:   26,
-                  fontWeight: FontWeight.bold,
-                  height:     1.3,
-                ),
+                style: AppTypography.displayLarge.copyWith(fontSize: 26, height: 1.3),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
 
-              const Text(
+              Text(
                 'L\'équipe FlashGo Bénin examine vos pièces d\'identité.\nDurée estimée : 24 à 48 heures.',
-                style: TextStyle(
-                  color:    Colors.white54,
-                  fontSize: 14,
-                  height:   1.6,
-                ),
+                style: AppTypography.bodyMedium.copyWith(height: 1.6),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -100,17 +93,17 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen>
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color:        const Color(0xFF1E2D3D),
+                  color:        AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.lock, color: Color(0xFF22D3EE), size: 18),
-                    SizedBox(width: 10),
+                    const Icon(Icons.lock, color: AppColors.accent, size: 18),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Vos pièces d\'identité sont stockées de façon sécurisée et privée.',
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                        style: AppTypography.label.copyWith(color: AppColors.textTertiary),
                       ),
                     ),
                   ],
@@ -125,12 +118,12 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen>
                 child: ElevatedButton.icon(
                   onPressed: _contactAdmin,
                   icon:  const Icon(Icons.message, color: Colors.white),
-                  label: const Text(
+                  label: Text(
                     'Contacter le support admin',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: AppTypography.button.copyWith(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
+                    backgroundColor: AppColors.whatsapp,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -141,9 +134,9 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen>
 
               TextButton(
                 onPressed: () => context.go('/driver/login'),
-                child: const Text(
+                child: Text(
                   'Retour à la connexion',
-                  style: TextStyle(color: Colors.white38, fontSize: 13),
+                  style: AppTypography.label.copyWith(color: AppColors.textDisabled),
                 ),
               ),
             ],
