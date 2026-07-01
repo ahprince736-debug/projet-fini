@@ -1,6 +1,4 @@
 // lib/screens/vendor/radar_screen.dart
-// Carte temps réel — le vendeur suit le livreur
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -19,201 +17,241 @@ import '../../theme/app_colors.dart';
 class RadarScreen extends StatefulWidget {
   final String orderId;
   const RadarScreen({super.key, required this.orderId});
-
   @override
   State<RadarScreen> createState() => _RadarScreenState();
 }
 
-class _RadarScreenState extends State<RadarScreen> {
+class _RadarScreenState extends State<RadarScreen>
+    with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
-  LatLng? _driverPosition;
-  Map?    _orderData;
-  bool    _isLoading = true;
+  LatLng?  _driverPosition;
+  Map?     _orderData;
+  bool     _isLoading = true;
+  String?  _errorMessage;
   StreamSubscription? _realtimeSub;
 
-  // Position de la boutique (Cotonou par défaut)
+  // Pulsation du marqueur livreur quand en mouvement
+  late AnimationController _pulseCtrl;
+  late Animation<double>   _pulseAnim;
+
   final LatLng _shopPosition = const LatLng(6.3703, 2.3912);
 
   @override
   void initState() {
     super.initState();
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))
+      ..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.3, end: 1.0)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
     _loadOrder();
   }
 
-  Future<void> _loadOrder() async {
-    final token    = await ls.LocalStorage.getToken();
+  @override
+  void dispose() {
+    _realtimeSub?.cancel();
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
 
+  Future<void> _loadOrder() async {
+    setState(() { _isLoading = true; _errorMessage = null; });
+    final token = await ls.LocalStorage.getToken();
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.orders}/${widget.orderId}'),
         headers: {'Authorization': 'Bearer $token'},
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _orderData = data['order'];
-          _isLoading = false;
-        });
-
-        // Démarrer l'écoute Realtime si un livreur est assigné
+        setState(() { _orderData = data['order']; _isLoading = false; });
         if (_orderData?['driver_id'] != null) {
           _startRealtimeTracking(_orderData!['driver_id']);
         }
+      } else {
+        setState(() { _errorMessage = 'Commande introuvable.'; _isLoading = false; });
       }
-    } catch (e) {
-      setState(() => _isLoading = false);
+    } catch (_) {
+      setState(() { _errorMessage = 'Impossible de charger la commande.'; _isLoading = false; });
     }
   }
 
   void _startRealtimeTracking(String driverId) {
-    // Écouter les mises à jour de position via Supabase Realtime
-    final supabase = Supabase.instance.client;
-
-    _realtimeSub = supabase
+    _realtimeSub = Supabase.instance.client
         .from('driver_locations')
         .stream(primaryKey: ['driver_id'])
         .eq('driver_id', driverId)
         .listen((data) {
           if (data.isNotEmpty && mounted) {
-            // Décodage du champ `geom` (geography PostGIS, format EWKB hex)
             final position = parseGeographyPoint(data.first['geom']);
             if (position != null) {
-              setState(() {
-                _driverPosition = position;
-              });
+              setState(() => _driverPosition = position);
+              // Recentrer la carte sur le livreur
+              _mapController.move(position, 15);
             }
           }
         });
   }
 
   @override
-  void dispose() {
-    _realtimeSub?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation:       0,
-        leading: IconButton(
-          icon:      const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Suivi du livreur',
-          style: AppTypography.displaySmall,
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
-          : Stack(
-              children: [
+          : _errorMessage != null
+              ? _ErrorState(message: _errorMessage!, onRetry: _loadOrder)
+              : Stack(children: [
 
-                // ── Carte plein écran ──────────────────────
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _shopPosition,
-                    initialZoom:   14,
-                  ),
-                  children: [
-                    // Tuiles OpenStreetMap
-                    TileLayer(
-                      urlTemplate:          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'bj.flashgo.app',
+                  // ── Carte plein écran ──────────────────
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _driverPosition ?? _shopPosition,
+                      initialZoom:   15,
                     ),
-
-                    // Marqueurs
-                    MarkerLayer(
-                      markers: [
-                        // Boutique (point fixe blanc)
+                    children: [
+                      TileLayer(
+                        urlTemplate:          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'bj.flashgo.app',
+                      ),
+                      MarkerLayer(markers: [
+                        // Boutique
                         Marker(
-                          point:  _shopPosition,
-                          width:  40,
-                          height: 40,
-                          child:  Container(
+                          point: _shopPosition, width: 44, height: 44,
+                          child: Container(
                             decoration: BoxDecoration(
                               color:  Colors.white,
                               shape:  BoxShape.circle,
-                              border: Border.all(color: AppColors.brandSeed, width: 3),
+                              border: Border.all(color: AppColors.brandSeed, width: 2.5),
+                              boxShadow: [BoxShadow(color: AppColors.brandSeed.withOpacity(0.3), blurRadius: 8)],
                             ),
                             child: const Icon(Icons.store, color: AppColors.brandSeed, size: 20),
                           ),
                         ),
-
-                        // Livreur (moto lime en déplacement)
+                        // Livreur (animé)
                         if (_driverPosition != null)
                           Marker(
-                            point:  _driverPosition!,
-                            width:  50,
-                            height: 50,
-                            child:  Container(
-                              decoration: BoxDecoration(
-                                color:  AppColors.cta,
-                                shape:  BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:      AppColors.cta.withOpacity(0.4),
-                                    blurRadius: 12,
-                                    spreadRadius: 3,
-                                  ),
-                                ],
+                            point: _driverPosition!, width: 54, height: 54,
+                            child: AnimatedBuilder(
+                              animation: _pulseAnim,
+                              builder: (_, __) => Container(
+                                decoration: BoxDecoration(
+                                  color:  AppColors.cta,
+                                  shape:  BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                  boxShadow: [BoxShadow(
+                                    color:      AppColors.cta.withOpacity(_pulseAnim.value * 0.5),
+                                    blurRadius: 16, spreadRadius: 4,
+                                  )],
+                                ),
+                                child: const Icon(Icons.motorcycle, color: Colors.black, size: 26),
                               ),
-                              child: const Icon(Icons.motorcycle, color: Colors.black, size: 26),
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ]),
+                    ],
+                  ),
 
-                // ── Panel inférieur ────────────────────────
-                Positioned(
-                  bottom: 0,
-                  left:   0,
-                  right:  0,
-                  child: Container(
-                    padding:     const EdgeInsets.all(20),
-                    decoration: const BoxDecoration(
-                      color:        AppColors.surface,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Barre de drag
-                        Container(
-                          width:  40, height: 4,
-                          decoration: BoxDecoration(
-                            color:        Colors.white24,
-                            borderRadius: BorderRadius.circular(2),
+                  // ── Bouton retour + badge statut ────────
+                  Positioned(
+                    top: 50, left: 16, right: 16,
+                    child: SafeArea(
+                      child: Row(children: [
+                        GestureDetector(
+                          onTap: () => context.pop(),
+                          child: Container(
+                            padding:    const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color:        Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow:    [const BoxShadow(color: Colors.black26, blurRadius: 8)],
+                            ),
+                            child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Container(
+                            padding:    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color:        AppColors.surface.withOpacity(0.95),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow:    [const BoxShadow(color: Colors.black26, blurRadius: 8)],
+                            ),
+                            child: Row(children: [
+                              // Indicateur live
+                              Container(
+                                width: 8, height: 8,
+                                decoration: BoxDecoration(
+                                  color: _driverPosition != null ? AppColors.success : AppColors.warning,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _driverPosition != null ? 'Livreur en direct' : 'En attente du livreur...',
+                                style: AppTypography.label.copyWith(
+                                  color: _driverPosition != null ? AppColors.success : AppColors.warning,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                        // Bouton centrer sur livreur
+                        if (_driverPosition != null) ...[
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () => _mapController.move(_driverPosition!, 15),
+                            child: Container(
+                              padding:    const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color:        AppColors.cta,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow:    [BoxShadow(color: AppColors.cta.withOpacity(0.4), blurRadius: 8)],
+                              ),
+                              child: const Icon(Icons.gps_fixed, color: Colors.black, size: 20),
+                            ),
+                          ),
+                        ],
+                      ]),
+                    ),
+                  ),
 
-                        // Infos livreur
-                        Row(
-                          children: [
-                            // Photo livreur
+                  // ── Panel inférieur ────────────────────
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: Container(
+                      padding:    const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                      decoration: const BoxDecoration(
+                        color:        AppColors.surface,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Handle
+                          Container(width: 40, height: 4,
+                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                          const SizedBox(height: 16),
+
+                          // Infos livreur
+                          Row(children: [
                             Container(
-                              width:  56,
-                              height: 56,
+                              width:  52, height: 52,
                               decoration: BoxDecoration(
                                 shape:  BoxShape.circle,
-                                border: Border.all(color: AppColors.accent, width: 2),
-                                color:  AppColors.surfaceVariant,
+                                border: Border.all(
+                                  color: _driverPosition != null ? AppColors.accent : Colors.white24,
+                                  width: 2,
+                                ),
+                                color: AppColors.surfaceVariant,
                               ),
-                              child: const Icon(Icons.person, color: Colors.white54, size: 30),
+                              child: Icon(Icons.person,
+                                color: _driverPosition != null ? AppColors.accent : Colors.white38,
+                                size: 28),
                             ),
-                            const SizedBox(width: 16),
-
-                            // Nom et plaque
+                            const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,51 +260,71 @@ class _RadarScreenState extends State<RadarScreen> {
                                     _orderData?['driver_id'] != null
                                         ? 'Livreur assigné'
                                         : 'En attente d\'un livreur...',
-                                    style: AppTypography.bodyLarge.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize:   15,
-                                    ),
+                                    style: AppTypography.bodyLarge.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
                                   ),
-                                  const Text(
-                                    'Arrivée estimée dans 5 min',
-                                    style: AppTypography.label.copyWith(color: AppColors.accent),
+                                  Text(
+                                    _driverPosition != null
+                                        ? 'Position mise à jour en direct'
+                                        : 'Il acceptera ta commande bientôt',
+                                    style: AppTypography.label.copyWith(
+                                      color: _driverPosition != null ? AppColors.accent : AppColors.textDisabled,
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
+                            // WhatsApp
+                            if (_orderData?['driver_id'] != null)
+                              GestureDetector(
+                                onTap: () {}, // TODO: ouvrir WhatsApp
+                                child: Container(
+                                  padding:    const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color:  AppColors.whatsapp.withOpacity(0.15),
+                                    shape:  BoxShape.circle,
+                                    border: Border.all(color: AppColors.whatsapp.withOpacity(0.5)),
+                                  ),
+                                  child: const Icon(Icons.message, color: AppColors.whatsapp, size: 20),
+                                ),
+                              ),
+                          ]),
 
-                            // Bouton WhatsApp
-                            Container(
-                              decoration: BoxDecoration(
-                                color:  AppColors.whatsapp.withOpacity(0.2),
-                                shape:  BoxShape.circle,
-                                border: Border.all(color: AppColors.whatsapp),
-                              ),
-                              child: IconButton(
-                                icon:      const Icon(Icons.message, color: AppColors.whatsapp),
-                                onPressed: () {
-                                  // TODO : ouvrir WhatsApp
-                                },
-                              ),
+                          // Bouton remise si livreur arrivé
+                          if (_orderData?['status'] == 'arrived') ...[
+                            const SizedBox(height: 16),
+                            FlashGoButton(
+                              label:     'Le livreur est là — Remettre le colis ⚡',
+                              icon:      Icons.handshake,
+                              onPressed: () => context.push('/vendor/handover/${widget.orderId}'),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Bouton remise si livreur arrivé
-                        if (_orderData?['status'] == 'arrived')
-                          FlashGoButton(
-                            label:     'Remettre le colis ⚡',
-                            onPressed: () => context.push(
-                              '/vendor/handover/${widget.orderId}',
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ]),
     );
   }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.signal_wifi_off, color: Colors.white24, size: 64),
+      const SizedBox(height: 16),
+      Text(message, style: AppTypography.bodyMedium.copyWith(color: AppColors.textDisabled),
+        textAlign: TextAlign.center),
+      const SizedBox(height: 20),
+      TextButton.icon(
+        onPressed: onRetry,
+        icon:  const Icon(Icons.refresh, color: AppColors.accent),
+        label: Text('Réessayer', style: AppTypography.label.copyWith(color: AppColors.accent)),
+      ),
+    ]),
+  );
 }
