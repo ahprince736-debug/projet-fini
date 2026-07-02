@@ -5,25 +5,8 @@ const supabase     = require('../supabase');
 const verifyJWT    = require('../middleware/auth');
 const checkQuota   = require('../middleware/checkQuota');
 const crypto       = require('crypto');
-
-// Calcul du tarif selon la distance
-function calculerTarif(distanceMetres) {
-  const km = distanceMetres / 1000;
-  const base = parseInt(process.env.TARIF_BASE_FCFA) || 500;
-  const parKm = parseInt(process.env.TARIF_PAR_KM_FCFA) || 100;
-  return Math.round(base + km * parKm);
-}
-
-// Calcul distance simple entre 2 points GPS (formule Haversine)
-function distanceHaversine(lat1, lng1, lat2, lng2) {
-  const R = 6371000; // rayon Terre en mètres
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-}
+const { distanceHaversine, calculerTarif } = require('../lib/pricing');
+const { hashOtp, verifyOtp, computeAttemptState, generateOtp } = require('../lib/otp');
 
 // ── POST /orders ───────────────────────────────────────────
 // Créer une nouvelle commande
@@ -184,9 +167,9 @@ router.patch('/:id/accept', verifyJWT, checkQuota('accept_order'), async (req, r
     const { id } = req.params;
     const driver_id = req.user.id;
 
-    // Générer l'OTP et son hash
-    const otp      = Math.floor(10000 + Math.random() * 90000).toString();
-    const otp_hash = crypto.createHash('sha256').update(otp).digest('hex');
+    // Générer l'OTP et son hash (module testé — voir src/lib/otp.js)
+    const otp      = generateOtp();
+    const otp_hash = hashOtp(otp);
 
     const { data: order, error } = await supabase
       .from('orders')
@@ -293,21 +276,20 @@ router.patch('/:id/validate-otp', verifyJWT, async (req, res) => {
       });
     }
 
-    // Hasher la saisie et comparer
-    const inputHash = crypto.createHash('sha256').update(otp_input).digest('hex');
-
-    if (inputHash !== order.otp_hash) {
-      const newAttempts = (attempt?.attempts || 0) + 1;
+    // Hasher la saisie et comparer via le module otp.js (source unique
+    // de vérité, testée unitairement — voir src/lib/otp.js)
+    if (!verifyOtp(otp_input, order.otp_hash)) {
+      const { newAttempts, isBlocked, remaining } = computeAttemptState(attempt?.attempts || 0);
       await supabase.from('otp_attempts').upsert({
         order_id:   id,
         driver_id,
         attempts:   newAttempts,
-        is_blocked: newAttempts >= 3
+        is_blocked: isBlocked
       });
 
       return res.status(400).json({
         error: 'Code incorrect',
-        remaining: Math.max(0, 3 - newAttempts)
+        remaining
       });
     }
 
