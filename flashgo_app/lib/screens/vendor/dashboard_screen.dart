@@ -68,7 +68,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
     } catch (_) {
       // Silencieux — RefreshIndicator permet de réessayer
     } finally {
-      setState(() { _isLoading = false; _isLoadingMore = false; });
+      if (mounted) setState(() { _isLoading = false; _isLoadingMore = false; });
     }
   }
 

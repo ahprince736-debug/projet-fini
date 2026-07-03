@@ -61,7 +61,7 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
     } catch (_) {
       setState(() => _errorMessage = 'Impossible de joindre le serveur.');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

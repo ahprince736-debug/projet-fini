@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
@@ -90,6 +91,21 @@ class _RadarScreenState extends State<RadarScreen>
             }
           }
         });
+  }
+
+  Future<void> _openWhatsapp() async {
+    final phone = _orderData?['driver_whatsapp'] as String?;
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Numéro du livreur indisponible.'),
+        backgroundColor: AppColors.warning,
+      ));
+      return;
+    }
+    final url = Uri.parse('https://wa.me/$phone');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -277,7 +293,7 @@ class _RadarScreenState extends State<RadarScreen>
                             // WhatsApp
                             if (_orderData?['driver_id'] != null)
                               GestureDetector(
-                                onTap: () {}, // TODO: ouvrir WhatsApp
+                                onTap: () => _openWhatsapp(),
                                 child: Container(
                                   padding:    const EdgeInsets.all(10),
                                   decoration: BoxDecoration(

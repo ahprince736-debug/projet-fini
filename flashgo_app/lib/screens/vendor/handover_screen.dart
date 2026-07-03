@@ -85,7 +85,7 @@ class _HandoverScreenState extends State<HandoverScreen>
         ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

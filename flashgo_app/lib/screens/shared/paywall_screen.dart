@@ -141,7 +141,7 @@ class _PlanCard extends StatelessWidget {
           child: Row(children: [
             Icon(Icons.check_circle, color: tagColor, size: 14),
             const SizedBox(width: 8),
-            Text(p, style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
+            Expanded(child: Text(p, style: AppTypography.label.copyWith(color: AppColors.textSecondary))),
           ]),
         )),
         const SizedBox(height: 20),

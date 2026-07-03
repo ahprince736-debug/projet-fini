@@ -4,8 +4,18 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../config/api_config.dart';
+import '../../services/local_storage.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+
+// Distance en mètres en-dessous de laquelle on considère le livreur
+// "arrivé" chez le client — évite d'activer le bouton dès le premier
+// signal GPS reçu, peu importe la distance réelle restante.
+const double _kProximityThresholdMeters = 60;
 
 class DeliverRouteScreen extends StatefulWidget {
   final String orderId;
@@ -16,29 +26,79 @@ class DeliverRouteScreen extends StatefulWidget {
 
 class _DeliverRouteScreenState extends State<DeliverRouteScreen>
     with SingleTickerProviderStateMixin {
-  LatLng _currentPosition = const LatLng(6.3703, 2.3912);
-  bool   _isNearClient    = false;
+  LatLng  _currentPosition = const LatLng(6.3703, 2.3912);
+  LatLng? _clientPosition;
+  bool    _isNearClient    = false;
   late AnimationController _pulseCtrl;
   late Animation<double>   _pulseAnim;
+
+  // Référence conservée pour pouvoir annuler le stream dans dispose().
+  // Avant ce correctif, le stream GPS n'était jamais annulé : il
+  // continuait à tourner (et à appeler setState) même après avoir
+  // quitté cet écran — fuite mémoire, batterie drainée, et crash
+  // potentiel ("setState called after dispose").
+  StreamSubscription<Position>? _positionSub;
 
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))
+      ..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.5, end: 1.0)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _loadClientPosition();
     _watchPosition();
   }
 
   @override
-  void dispose() { _pulseCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _positionSub?.cancel();
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  // Récupère la position du client depuis la commande, pour pouvoir
+  // comparer une vraie distance plutôt que de supposer l'arrivée dès
+  // le premier signal GPS.
+  Future<void> _loadClientPosition() async {
+    final token = await LocalStorage.getToken();
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.orders}/${widget.orderId}'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final data  = jsonDecode(response.body);
+        final order = data['order'];
+        final lat   = order?['client_lat'];
+        final lng   = order?['client_lng'];
+        if (lat != null && lng != null && mounted) {
+          setState(() => _clientPosition =
+              LatLng((lat as num).toDouble(), (lng as num).toDouble()));
+        }
+      }
+    } catch (_) {
+      // Silencieux — sans position client connue, _isNearClient restera
+      // false et le livreur devra confirmer manuellement s'il le faut.
+    }
+  }
 
   void _watchPosition() {
-    Geolocator.getPositionStream(locationSettings: const LocationSettings(
+    _positionSub = Geolocator.getPositionStream(locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.high, distanceFilter: 20,
     )).listen((position) {
+      if (!mounted) return;
+
+      final newPosition = LatLng(position.latitude, position.longitude);
+      final isNear = _clientPosition != null &&
+          Geolocator.distanceBetween(
+            newPosition.latitude, newPosition.longitude,
+            _clientPosition!.latitude, _clientPosition!.longitude,
+          ) <= _kProximityThresholdMeters;
+
       setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _isNearClient = true; // En production : comparer avec client_geom
+        _currentPosition = newPosition;
+        _isNearClient    = isNear;
       });
     });
   }
@@ -116,8 +176,12 @@ class _DeliverRouteScreenState extends State<DeliverRouteScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(children: [
-                  Text('Livraison chez le client', style: AppTypography.displaySmall.copyWith(fontSize: 15)),
-                  const Spacer(),
+                  Expanded(
+                    child: Text('Livraison chez le client',
+                      style: AppTypography.displaySmall.copyWith(fontSize: 15),
+                      overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(width: 8),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

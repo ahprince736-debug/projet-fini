@@ -45,12 +45,14 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   Future<void> _loadDriver() async {
     final userId = await LocalStorage.getUserId();
     final token  = await LocalStorage.getToken();
+    if (!mounted) return;
     setState(() => _driverId = userId ?? '');
 
     // Cache profil : lire d'abord le nom stocké localement pour un
     // affichage immédiat (zéro latence perçue), puis mettre à jour
     // en arrière-plan si le réseau répond.
     final cachedName = await LocalStorage.getShopName(); // réutilise le slot "nom"
+    if (!mounted) return;
     if (cachedName != null) setState(() => _driverName = cachedName);
 
     try {
@@ -58,6 +60,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         Uri.parse(ApiConfig.me),
         headers: {'Authorization': 'Bearer $token'},
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final name = data['profile']['full_name'] ?? 'Livreur';
@@ -67,6 +70,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       }
     } catch (_) {}
 
+    if (!mounted) return;
     await _fetchNearbyOrders();
   }
 
@@ -76,7 +80,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     // l'utilisateur tire le RefreshIndicator plusieurs fois d'affilée).
     final now = DateTime.now();
     if (_lastFetch != null && now.difference(_lastFetch!) < _minFetchInterval) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
     _lastFetch = now;
@@ -91,14 +95,15 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         Uri.parse('${ApiConfig.ordersNearby}?lat=${position.latitude}&lng=${position.longitude}'),
         headers: {'Authorization': 'Bearer $token'},
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() => _orders = data['orders'] ?? []);
       }
     } catch (_) {
-      setState(() => _orders = []);
+      if (mounted) setState(() => _orders = []);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

@@ -146,13 +146,44 @@ router.get('/:id', async (req, res) => {
     const isParticipant = authenticatedUserId &&
       (authenticatedUserId === order.vendor_id || authenticatedUserId === order.driver_id);
 
+    // Numéro WhatsApp du livreur — nécessaire pour les boutons "Appeler"/
+    // "WhatsApp" de la page de tracking. Avant ce correctif, ce champ
+    // n'était jamais récupéré : ces boutons utilisaient par erreur le
+    // numéro du CLIENT (client_phone), c'est-à-dire la personne qui
+    // consulte la page elle-même — les boutons ne pouvaient donc jamais
+    // réellement joindre le livreur.
+    let driverWhatsapp = null;
+    if (order.driver_id) {
+      const { data: driverProfile } = await supabase
+        .from('profiles')
+        .select('whatsapp')
+        .eq('id', order.driver_id)
+        .single();
+      driverWhatsapp = driverProfile?.whatsapp ?? null;
+    }
+
     if (isParticipant) {
-      return res.json({ order });
+      // Coordonnées GPS du client ajoutées uniquement ici — jamais en
+      // mode public, pour protéger la vie privée de l'adresse du client.
+      // Nécessaires par exemple à deliver_route_screen.dart pour calculer
+      // une vraie distance de proximité plutôt que de la supposer.
+      const { data: coords } = await supabase
+        .rpc('get_order_client_coords', { p_order_id: id })
+        .single();
+
+      return res.json({
+        order: {
+          ...order,
+          client_lat: coords?.client_lat ?? null,
+          client_lng: coords?.client_lng ?? null,
+          driver_whatsapp: driverWhatsapp,
+        }
+      });
     }
 
     // Mode public restreint : on retire les données sensibles/financières
     const { vendor_id, prix_fcfa, ...publicOrder } = order;
-    return res.json({ order: publicOrder });
+    return res.json({ order: { ...publicOrder, driver_whatsapp: driverWhatsapp } });
   } catch (err) {
     console.error('Erreur GET /orders/:id', err);
     res.status(500).json({ error: 'Erreur serveur' });

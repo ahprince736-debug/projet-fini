@@ -45,7 +45,7 @@ class _WalletScreenState extends State<WalletScreen> {
         });
       }
     } catch (_) {} finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -75,7 +75,7 @@ class _WalletScreenState extends State<WalletScreen> {
     } catch (_) {
       _snack('Impossible de joindre le serveur.', AppColors.danger);
     } finally {
-      setState(() => _isWithdrawing = false);
+      if (mounted) setState(() => _isWithdrawing = false);
     }
   }
 

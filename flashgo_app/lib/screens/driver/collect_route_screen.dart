@@ -28,7 +28,7 @@ class _CollectRouteScreenState extends State<CollectRouteScreen> {
   Future<void> _getCurrentPosition() async {
     try {
       final p = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      setState(() => _currentPosition = LatLng(p.latitude, p.longitude));
+      if (mounted) setState(() => _currentPosition = LatLng(p.latitude, p.longitude));
     } catch (_) {}
   }
 
@@ -51,7 +51,7 @@ class _CollectRouteScreenState extends State<CollectRouteScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Impossible de joindre le serveur.'), backgroundColor: AppColors.danger));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

@@ -98,7 +98,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     } catch (e) {
       setState(() => _errorMessage = 'Erreur technique. Réessaie plus tard.');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

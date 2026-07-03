@@ -25,6 +25,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Map?    _order;
   LatLng? _driverPosition;
   bool    _isLoading = true;
+  bool    _hasError  = false;
   Timer?  _pollingTimer;
 
   @override
@@ -34,6 +35,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Future<void> _loadOrder() async {
+    setState(() { _isLoading = true; _hasError = false; });
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.orders}/${widget.orderId}'),
@@ -49,9 +51,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
         if (_order?['driver_id'] != null) {
           _startTracking(_order!['driver_id']);
         }
+      } else {
+        setState(() { _isLoading = false; _hasError = true; });
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() { _isLoading = false; _hasError = true; });
     }
   }
 
@@ -81,17 +85,26 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Future<void> _callDriver() async {
-    final phone = _order?['client_phone'] ?? '';
-    final url   = Uri.parse('tel:$phone');
+    final phone = _order?['driver_whatsapp'] ?? '';
+    if (phone.isEmpty) { _showNoPhoneMessage(); return; }
+    final url = Uri.parse('tel:$phone');
     if (await canLaunchUrl(url)) await launchUrl(url);
   }
 
   Future<void> _whatsappDriver() async {
-    final phone = _order?['client_phone'] ?? '';
-    final url   = Uri.parse('https://wa.me/$phone');
+    final phone = _order?['driver_whatsapp'] ?? '';
+    if (phone.isEmpty) { _showNoPhoneMessage(); return; }
+    final url = Uri.parse('https://wa.me/$phone');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
+  }
+
+  void _showNoPhoneMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Numéro de contact indisponible pour cette commande.'),
+      backgroundColor: AppColors.warning,
+    ));
   }
 
   @override
@@ -111,16 +124,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
           children: [
             const Icon(Icons.bolt, color: AppColors.cta, size: 20),
             const SizedBox(width: 6),
-            Text(
-              'FlashGo — Colis #${widget.orderId.substring(0, 8)}',
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+            Expanded(
+              child: Text(
+                'FlashGo — Colis #${widget.orderId.substring(0, 8)}',
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
-          : Column(
+          : _hasError
+              ? _TrackingErrorState(onRetry: _loadOrder)
+              : Column(
               children: [
 
                 // Carte 50% de l'écran
@@ -283,4 +301,40 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
     );
   }
+}
+class _TrackingErrorState extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _TrackingErrorState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.search_off, color: Colors.white24, size: 72),
+          const SizedBox(height: 20),
+          const Text(
+            'Commande introuvable',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Ce lien de suivi n\'est plus valide, ou la commande '
+            'n\'existe pas. Vérifie le lien reçu par SMS.',
+            style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon:  const Icon(Icons.refresh, color: AppColors.accent),
+            label: const Text('Réessayer', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    ),
+  );
 }
