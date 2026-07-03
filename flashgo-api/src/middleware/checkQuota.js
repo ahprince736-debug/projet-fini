@@ -37,16 +37,20 @@ module.exports = function checkQuota(action_type) {
     const QUOTA = parseInt(process.env.QUOTA_GRATUIT_JOUR) || 3;
 
     if (count >= QUOTA) {
-      // 3. Vérifier le solde prépayé
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('prepaid_balance')
-        .eq('id', user_id)
-        .single();
-
+      // Débit atomique via RPC Postgres — corrige une race condition où
+      // deux requêtes simultanées pouvaient lire le même solde et se
+      // débiter deux fois (voir src/routes/wallet.js pour le même
+      // principe appliqué au retrait MoMo).
       const COUT_UNITAIRE = 100; // 100 FCFA par action
 
-      if (!profile || profile.prepaid_balance < COUT_UNITAIRE) {
+      const { data: debitResult, error: debitError } = await supabase
+        .rpc('debit_prepaid_balance', {
+          p_user_id: user_id,
+          p_amount:  COUT_UNITAIRE
+        })
+        .single();
+
+      if (debitError || !debitResult?.success) {
         return res.status(402).json({
           error: 'Quota gratuit épuisé',
           message: `Tu as utilisé tes ${QUOTA} actions gratuites du jour. Abonne-toi ou recharge ton compte.`,
@@ -54,12 +58,6 @@ module.exports = function checkQuota(action_type) {
           remaining: 0
         });
       }
-
-      // 4. Débiter 100 FCFA du solde prépayé
-      await supabase
-        .from('profiles')
-        .update({ prepaid_balance: profile.prepaid_balance - COUT_UNITAIRE })
-        .eq('id', user_id);
     }
 
     // 5. Enregistrer l'action

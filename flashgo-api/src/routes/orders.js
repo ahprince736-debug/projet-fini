@@ -4,7 +4,6 @@ const router       = express.Router();
 const supabase     = require('../supabase');
 const verifyJWT    = require('../middleware/auth');
 const checkQuota   = require('../middleware/checkQuota');
-const crypto       = require('crypto');
 const { distanceHaversine, calculerTarif } = require('../lib/pricing');
 const { hashOtp, verifyOtp, computeAttemptState, generateOtp } = require('../lib/otp');
 

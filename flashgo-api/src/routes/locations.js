@@ -14,7 +14,10 @@ router.put('/driver', verifyJWT, async (req, res) => {
     const driver_id = req.user.id;
     const { lat, lng } = req.body;
 
-    if (!lat || !lng) {
+    // Vérification explicite null/undefined plutôt que `!lat || !lng` —
+    // ce dernier rejetait à tort une position à exactement 0.0
+    // (équateur ou méridien de Greenwich), car 0 est falsy en JavaScript.
+    if (lat === undefined || lat === null || lng === undefined || lng === null) {
       return res.status(400).json({ error: 'Coordonnées GPS manquantes' });
     }
 

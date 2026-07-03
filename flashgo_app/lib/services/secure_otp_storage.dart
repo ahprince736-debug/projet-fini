@@ -7,6 +7,7 @@ import 'dart:convert';
 
 class SecureOtpStorage {
   static const String _boxName = 'secure_otp';
+  static const int    _maxAttempts = 3;
 
   // Initialiser Hive (à appeler au démarrage de l'app)
   static Future<void> init() async {
@@ -34,9 +35,44 @@ class SecureOtpStorage {
     return inputHash == storedHash;
   }
 
+  // ── Compteur de tentatives persisté (anti brute-force hors-ligne) ──
+  //
+  // Avant ce correctif, le compteur de tentatives vivait uniquement dans
+  // l'état du widget Flutter (_attemptsRemaining) — redémarrer l'app ou
+  // simplement naviguer hors de l'écran et y revenir remettait le
+  // compteur à 3, permettant un nombre illimité d'essais en pratique.
+  // Ici, le compteur est stocké dans Hive (même mécanisme que le hash
+  // OTP lui-même), donc il survit à un redémarrage de l'app.
+
+  static Future<int> getAttempts(String orderId) async {
+    final box = Hive.box<String>(_boxName);
+    final raw = box.get('attempts_$orderId');
+    return raw != null ? int.tryParse(raw) ?? 0 : 0;
+  }
+
+  static Future<bool> isBlocked(String orderId) async {
+    final attempts = await getAttempts(orderId);
+    return attempts >= _maxAttempts;
+  }
+
+  /// Incrémente le compteur après un échec et retourne le nouvel état.
+  static Future<({int attempts, bool isBlocked, int remaining})> recordFailedAttempt(
+      String orderId) async {
+    final box = Hive.box<String>(_boxName);
+    final current = await getAttempts(orderId);
+    final newAttempts = current + 1;
+    await box.put('attempts_$orderId', newAttempts.toString());
+    return (
+      attempts:  newAttempts,
+      isBlocked: newAttempts >= _maxAttempts,
+      remaining: (_maxAttempts - newAttempts).clamp(0, _maxAttempts),
+    );
+  }
+
   // Nettoyer après livraison validée
   static Future<void> clearOtp(String orderId) async {
     final box = Hive.box<String>(_boxName);
     await box.delete('otp_$orderId');
+    await box.delete('attempts_$orderId');
   }
 }

@@ -33,6 +33,25 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
   bool   _isOffline         = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadPersistedAttemptState();
+  }
+
+  // Recharge l'état de tentatives persisté (Hive) — corrige le bug où
+  // redémarrer l'app ou revenir sur cet écran remettait le compteur à 3,
+  // contournant le blocage anti brute-force en mode hors-ligne.
+  Future<void> _loadPersistedAttemptState() async {
+    final attempts = await SecureOtpStorage.getAttempts(widget.orderId);
+    final blocked  = await SecureOtpStorage.isBlocked(widget.orderId);
+    if (!mounted) return;
+    setState(() {
+      _attemptsRemaining = (3 - attempts).clamp(0, 3);
+      _isBlocked         = blocked;
+    });
+  }
+
+  @override
   void dispose() {
     for (final c in _controllers) { c.dispose(); }
     for (final f in _focusNodes)  { f.dispose(); }
@@ -99,9 +118,12 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
         await OfflineSyncService.queueValidation(widget.orderId, _otpInput);
         _onSuccess();
       } else {
+        // Persisté dans Hive — survit à un redémarrage de l'app, contrairement
+        // à un simple compteur en mémoire (voir correctif dans secure_otp_storage.dart).
+        final state = await SecureOtpStorage.recordFailedAttempt(widget.orderId);
         setState(() {
-          _attemptsRemaining--;
-          _isBlocked = _attemptsRemaining <= 0;
+          _attemptsRemaining = state.remaining;
+          _isBlocked         = state.isBlocked;
         });
         _onError();
       }

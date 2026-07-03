@@ -38,9 +38,13 @@ router.get('/', verifyJWT, async (req, res) => {
 router.post('/withdraw', verifyJWT, async (req, res) => {
   try {
     const user_id = req.user.id;
-    const { amount, momo_number, network } = req.body;
+    const { momo_number, network } = req.body;
 
     const MINIMUM = parseInt(process.env.RETRAIT_MINIMUM_FCFA) || 500;
+
+    if (!momo_number || !network) {
+      return res.status(400).json({ error: 'Numéro MoMo et réseau requis' });
+    }
 
     // Vérifier le solde
     const { data: wallet } = await supabase
@@ -55,6 +59,13 @@ router.post('/withdraw', verifyJWT, async (req, res) => {
         message: `Minimum de retrait : ${MINIMUM} FCFA. Ton solde : ${wallet?.balance || 0} FCFA`
       });
     }
+
+    // Sécurité : le montant retiré est TOUJOURS le solde réel du serveur,
+    // jamais une valeur envoyée par le client. Avant ce correctif, le body
+    // acceptait un `amount` arbitraire sans jamais le comparer au solde
+    // réel — un livreur avec 600 FCFA aurait pu demander un retrait de
+    // n'importe quel montant, y compris bien supérieur à son solde.
+    const amount = wallet.balance;
 
     // Créer la demande
     const { data: request } = await supabase

@@ -67,6 +67,10 @@ router.post('/register-driver', async (req, res) => {
       return res.status(400).json({ error: 'Tous les champs sont obligatoires' });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court. Minimum 8 caractères' });
+    }
+
     const email = `${whatsapp.replace('+', '')}@flashgo.bj`;
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
