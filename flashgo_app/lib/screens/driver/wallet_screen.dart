@@ -299,7 +299,7 @@ class _TransactionTile extends StatelessWidget {
           top:    isLast ? Radius.zero : Radius.zero,
           bottom: isLast ? const Radius.circular(14) : Radius.zero,
         ),
-        border: Border(bottom: BorderSide(color: Colors.white05)),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
       ),
       child: Row(children: [
         Container(
