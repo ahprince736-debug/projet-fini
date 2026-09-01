@@ -11,7 +11,10 @@
 .env
 .env.*
 *.env
-!*.env.example        # Exception : les fichiers d'exemple sans vraies valeurs
+# Exception : les fichiers d'exemple sans vraies valeurs (le commentaire
+# doit être sur sa propre ligne — un commentaire inline après un motif
+# de négation empêche Git de l'appliquer correctement)
+!*.env.example
 
 # ── Dépendances (régénérées par npm install / flutter pub get) ──────
 node_modules/
@@ -26,12 +29,11 @@ dist/
 *.aab
 
 # ── Flutter spécifique ───────────────────────────────────────────────
-# Le dossier .flutter-plugins-dependencies est régénéré automatiquement
 **/android/.gradle/
 **/android/captures/
 **/android/local.properties
 **/android/GeneratedPluginRegistrant.java
-**/android/key.properties           # Clés de signature — CRITIQUE, ne jamais versionner
+**/android/key.properties
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/Pods/
 **/ios/.symlinks/
@@ -45,7 +47,7 @@ dist/
 # ── IDEs ──────────────────────────────────────────────────────────────
 .idea/
 *.iml
-.vscode/settings.json             # Settings personnels (pas launch.json)
+.vscode/settings.json
 *.swp
 *.swo
 .DS_Store
