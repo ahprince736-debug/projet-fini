@@ -131,6 +131,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     try {
       // Vérifie d'abord si le GPS est activé sur le téléphone
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!mounted) return;
       if (!serviceEnabled) {
         setState(() => _locationError = 'GPS désactivé — active-le dans les paramètres.');
         return;
@@ -138,8 +139,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
       // Vérifie les permissions
       LocationPermission permission = await Geolocator.checkPermission();
+      if (!mounted) return;
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+        if (!mounted) return;
         if (permission == LocationPermission.denied) {
           setState(() => _locationError = 'Permission GPS refusée.');
           return;
@@ -150,22 +153,25 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         return;
       }
 
-      // Position actuelle (timeout de 10s pour les zones à signal faible)
+      // Position actuelle (timeout de 10s pour les zones à signal faible) —
+      // fenêtre large pendant laquelle l'utilisateur peut quitter l'écran,
+      // d'où l'importance des gardes `mounted` sur ce bloc en particulier.
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       ).timeout(
         const Duration(seconds: 10),
         onTimeout: () => throw Exception('GPS trop lent — réessaie en extérieur.'),
       );
+      if (!mounted) return;
 
       setState(() {
         _shopLat = position.latitude;
         _shopLng = position.longitude;
       });
     } catch (e) {
-      setState(() => _locationError = e.toString().replaceAll('Exception: ', ''));
+      if (mounted) setState(() => _locationError = e.toString().replaceAll('Exception: ', ''));
     } finally {
-      setState(() => _isLocating = false);
+      if (mounted) setState(() => _isLocating = false);
     }
   }
 

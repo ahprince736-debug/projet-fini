@@ -39,6 +39,7 @@ class _WalletScreenState extends State<WalletScreen> {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        if (!mounted) return;
         setState(() {
           _balance      = data['balance']      ?? 0;
           _transactions = data['transactions'] ?? [];
@@ -65,15 +66,17 @@ class _WalletScreenState extends State<WalletScreen> {
         body: jsonEncode({'amount': _balance, 'momo_number': _momoCtrl.text.trim(), 'network': _network}),
       );
       if (response.statusCode == 200) {
+        if (!mounted) return;
         _momoCtrl.clear();
         _snack('✅ Demande enregistrée — virement à 19h00.', AppColors.success);
         _loadWallet();
       } else {
         final data = jsonDecode(response.body);
+        if (!mounted) return;
         _snack(data['message'] ?? 'Erreur', AppColors.danger);
       }
     } catch (_) {
-      _snack('Impossible de joindre le serveur.', AppColors.danger);
+      if (mounted) _snack('Impossible de joindre le serveur.', AppColors.danger);
     } finally {
       if (mounted) setState(() => _isWithdrawing = false);
     }

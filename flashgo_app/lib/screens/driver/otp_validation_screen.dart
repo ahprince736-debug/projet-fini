@@ -92,6 +92,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
       ).timeout(const Duration(seconds: 5));
 
       final data = jsonDecode(response.body);
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         _onSuccess();
@@ -107,20 +108,24 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
 
     } catch (e) {
       // Hors ligne — validation locale avec Hive
+      if (!mounted) return;
       setState(() => _isOffline = true);
       final isValid = await SecureOtpStorage.validateOtp(
         widget.orderId, _otpInput,
       );
+      if (!mounted) return;
 
       if (isValid) {
         // Mémorisée pour être confirmée au serveur dès qu'une connexion
         // redevient disponible (sinon le paiement ne serait jamais déclenché).
         await OfflineSyncService.queueValidation(widget.orderId, _otpInput);
+        if (!mounted) return;
         _onSuccess();
       } else {
         // Persisté dans Hive — survit à un redémarrage de l'app, contrairement
         // à un simple compteur en mémoire (voir correctif dans secure_otp_storage.dart).
         final state = await SecureOtpStorage.recordFailedAttempt(widget.orderId);
+        if (!mounted) return;
         setState(() {
           _attemptsRemaining = state.remaining;
           _isBlocked         = state.isBlocked;
@@ -128,7 +133,7 @@ class _OtpValidationScreenState extends State<OtpValidationScreen> {
         _onError();
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

@@ -42,6 +42,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
 
     final shopName = await LocalStorage.getShopName();
     final token    = await LocalStorage.getToken();
+    if (!mounted) return;
     if (reset) setState(() => _shopName = shopName ?? 'Ma Boutique');
 
     try {
@@ -49,6 +50,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
         Uri.parse('${ApiConfig.ordersMine}?page=$_currentPage&limit=$_pageSize'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final newOrders = data['orders'] ?? [];

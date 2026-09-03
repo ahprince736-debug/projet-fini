@@ -61,6 +61,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
     if (source == null) return;
     final photo = await _picker.pickImage(source: source, imageQuality: 80);
+    if (!mounted) return;
     if (photo != null) setState(() => isProfile ? _profilePhoto = photo : _cniPhoto = photo);
   }
 
@@ -80,6 +81,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         }),
       );
       final data = jsonDecode(response.body);
+      if (!mounted) return;
       if (response.statusCode != 201) {
         setState(() => _errorMessage = data['error'] ?? 'Erreur lors de l\'inscription'); return;
       }
@@ -96,7 +98,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       if (!mounted) return;
       context.go('/driver/waiting');
     } catch (e) {
-      setState(() => _errorMessage = 'Erreur technique. Réessaie plus tard.');
+      if (mounted) setState(() => _errorMessage = 'Erreur technique. Réessaie plus tard.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -57,11 +57,13 @@ class _RadarScreenState extends State<RadarScreen>
   Future<void> _loadOrder() async {
     setState(() { _isLoading = true; _errorMessage = null; });
     final token = await ls.LocalStorage.getToken();
+    if (!mounted) return;
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.orders}/${widget.orderId}'),
         headers: {'Authorization': 'Bearer $token'},
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() { _orderData = data['order']; _isLoading = false; });
@@ -72,7 +74,7 @@ class _RadarScreenState extends State<RadarScreen>
         setState(() { _errorMessage = 'Commande introuvable.'; _isLoading = false; });
       }
     } catch (_) {
-      setState(() { _errorMessage = 'Impossible de charger la commande.'; _isLoading = false; });
+      if (mounted) setState(() { _errorMessage = 'Impossible de charger la commande.'; _isLoading = false; });
     }
   }
 

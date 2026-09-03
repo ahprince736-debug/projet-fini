@@ -40,6 +40,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       final response = await http.get(
         Uri.parse('${ApiConfig.orders}/${widget.orderId}'),
       );
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -55,7 +56,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         setState(() { _isLoading = false; _hasError = true; });
       }
     } catch (e) {
-      setState(() { _isLoading = false; _hasError = true; });
+      if (mounted) setState(() { _isLoading = false; _hasError = true; });
     }
   }
 

@@ -29,6 +29,7 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
 
   Future<void> _loadShopName() async {
     final name = await LocalStorage.getShopName();
+    if (!mounted) return;
     setState(() => _shopName = name);
   }
 
