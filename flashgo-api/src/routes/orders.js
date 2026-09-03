@@ -9,7 +9,33 @@ const { hashOtp, verifyOtp, computeAttemptState, generateOtp } = require('../lib
 
 // ── POST /orders ───────────────────────────────────────────
 // Créer une nouvelle commande
-router.post('/', verifyJWT, checkQuota('create_order'), async (req, res) => {
+// Valide le corps de la requête AVANT checkQuota — sans ça, une commande
+// malformée (coordonnées manquantes, adresse vide) consommerait quand
+// même une action gratuite ou 100 FCFA du solde prépayé avant d'être
+// rejetée, ce qui pénalise injustement l'utilisateur pour une erreur
+// de formulaire.
+function validateOrderInput(req, res, next) {
+  const { shop_lat, shop_lng, client_address, client_lat, client_lng, client_phone } = req.body;
+
+  const coords = { shop_lat, shop_lng, client_lat, client_lng };
+  for (const [key, value] of Object.entries(coords)) {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return res.status(400).json({
+        error: 'Coordonnées invalides',
+        message: `Le champ '${key}' doit être un nombre valide.`
+      });
+    }
+  }
+  if (!client_address || typeof client_address !== 'string' || !client_address.trim()) {
+    return res.status(400).json({ error: 'Adresse de livraison requise' });
+  }
+  if (!client_phone || typeof client_phone !== 'string' || !client_phone.trim()) {
+    return res.status(400).json({ error: 'Téléphone du client requis' });
+  }
+  next();
+}
+
+router.post('/', verifyJWT, validateOrderInput, checkQuota('create_order'), async (req, res) => {
   try {
     const {
       shop_lat, shop_lng,

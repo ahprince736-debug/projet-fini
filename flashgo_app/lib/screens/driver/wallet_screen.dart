@@ -63,7 +63,11 @@ class _WalletScreenState extends State<WalletScreen> {
       final response = await http.post(
         Uri.parse(ApiConfig.walletWithdraw),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({'amount': _balance, 'momo_number': _momoCtrl.text.trim(), 'network': _network}),
+        // Note : le serveur détermine seul le montant à retirer à partir
+        // du solde réel (jamais une valeur envoyée par le client — voir
+        // le correctif de sécurité dans wallet.js). Envoyer 'amount' ici
+        // serait trompeur puisqu'il est désormais ignoré côté backend.
+        body: jsonEncode({'momo_number': _momoCtrl.text.trim(), 'network': _network}),
       );
       if (response.statusCode == 200) {
         if (!mounted) return;
